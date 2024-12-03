@@ -1,0 +1,108 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Location {
+  id        String   @id @default(cuid())
+  aisle     String
+  bay       String
+  height    String
+  label     String   @unique // Computed field: {aisle}-{bay}-{height}
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  stocks            Stock[]
+  fromTransactions  Transaction[] @relation("FromLocation")
+  toTransactions    Transaction[] @relation("ToLocation")
+
+  @@index([label])
+}
+
+model Item {
+  id          String   @id @default(cuid())
+  sku         String   @unique
+  name        String
+  description String?
+  barcode     String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  stocks       Stock[]
+  transactions Transaction[]
+
+  @@index([sku, barcode])
+}
+
+model Stock {
+  id          String   @id @default(cuid())
+  quantity    Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  item        Item     @relation(fields: [itemId], references: [id])
+  itemId      String
+  location    Location @relation(fields: [locationId], references: [id])
+  locationId  String
+
+  @@unique([itemId, locationId])
+  @@index([itemId])
+  @@index([locationId])
+}
+
+model Transaction {
+  id              String    @id @default(cuid())
+  quantity        Int
+  type            TransactionType
+  createdAt       DateTime  @default(now())
+
+  // Relations
+  item            Item      @relation(fields: [itemId], references: [id])
+  itemId          String
+  fromLocation    Location? @relation("FromLocation", fields: [fromLocationId], references: [id])
+  fromLocationId  String?
+  toLocation      Location? @relation("ToLocation", fields: [toLocationId], references: [id])
+  toLocationId    String?
+  user            User?     @relation(fields: [userId], references: [id])
+  userId          String?
+
+  @@index([itemId])
+  @@index([fromLocationId])
+  @@index([toLocationId])
+  @@index([userId])
+}
+
+model User {
+  id            String    @id @default(cuid())
+  username      String    @unique
+  passwordHash  String
+  role          UserRole
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  transactions  Transaction[]
+
+  @@index([username])
+}
+
+enum TransactionType {
+  ADD
+  REMOVE
+  MOVE
+}
+
+enum UserRole {
+  STAFF
+  ADMIN
+}

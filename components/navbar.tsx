@@ -24,8 +24,8 @@ export function Navbar() {
       label: "Dashboard",
     },
     {
-      href: "/stock/add",
-      label: "Add Stock",
+      href: "/stock/putaway",
+      label: "Putaway",
     },
     {
       href: "/stock/remove",

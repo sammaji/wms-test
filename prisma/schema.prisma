@@ -18,6 +18,7 @@ model Location {
   label     String   @unique // Computed field: {aisle}-{bay}-{height}
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  type      String   // e.g., "BAY", "AISLE", etc.
 
   // Relations
   stocks            Stock[]

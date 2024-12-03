@@ -5,6 +5,8 @@ import { Keyboard } from "lucide-react"
 import { CameraScanner } from "./camera-scanner"
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner"
 
+type QuaggaReader = "ean_reader" | "ean_8_reader" | "code_128_reader" | "code_39_reader" | "upc_reader" | "upc_e_reader"
+
 interface BarcodeScannerProps {
   isScanning: boolean
   onScan: (barcode: string) => void
@@ -12,6 +14,7 @@ interface BarcodeScannerProps {
   showKeyboardHint?: boolean
   showGuides?: boolean
   showStatus?: boolean
+  readers?: QuaggaReader[]
 }
 
 export function BarcodeScanner({ 
@@ -21,6 +24,7 @@ export function BarcodeScanner({
   showKeyboardHint = true,
   showGuides = true,
   showStatus = true,
+  readers,
 }: BarcodeScannerProps) {
   const [lastScanned, setLastScanned] = useState("")
 
@@ -34,7 +38,7 @@ export function BarcodeScanner({
 
   // Handle camera scan
   const handleCameraScan = (barcode: string) => {
-    if (barcode === lastScanned) return
+    if (!isScanning || barcode === lastScanned) return
     setLastScanned(barcode)
     onScan(barcode)
   }
@@ -47,6 +51,7 @@ export function BarcodeScanner({
         onError={onError}
         showGuides={showGuides}
         showStatus={showStatus}
+        readers={readers}
       />
       
       {showKeyboardHint && (

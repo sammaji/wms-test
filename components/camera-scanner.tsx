@@ -9,12 +9,15 @@ const log = (message: string, data?: any) => {
   console.log(`[CameraScanner] ${message}`, data || '')
 }
 
+type QuaggaReader = "ean_reader" | "ean_8_reader" | "code_128_reader" | "code_39_reader" | "upc_reader" | "upc_e_reader"
+
 interface CameraScannerProps {
   isScanning: boolean
   onScan: (barcode: string) => void
   onError: (error: Error) => void
   showGuides?: boolean
   showStatus?: boolean
+  readers?: QuaggaReader[]
 }
 
 export function CameraScanner({ 
@@ -23,34 +26,70 @@ export function CameraScanner({
   onError,
   showGuides = true,
   showStatus = true,
+  readers = [
+    "ean_reader",
+    "ean_8_reader",
+    "code_128_reader",
+    "code_39_reader",
+    "upc_reader",
+    "upc_e_reader",
+  ],
 }: CameraScannerProps) {
   const scannerRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const mountedRef = useRef(false)
   const streamRef = useRef<MediaStream | null>(null)
+  const quaggaInitializedRef = useRef(false)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
 
   const [hasCamera, setHasCamera] = useState(true)
   const [permissionDenied, setPermissionDenied] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [initializationAttempts, setInitializationAttempts] = useState(0)
 
-  const stopStream = () => {
+  const stopScanner = async () => {
+    log('Stopping scanner...')
+    if (quaggaInitializedRef.current) {
+      try {
+        await Quagga.stop()
+        quaggaInitializedRef.current = false
+      } catch (error) {
+        log('Error stopping Quagga:', error)
+      }
+    }
+    
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop())
-      streamRef.current = null
+      try {
+        streamRef.current.getTracks().forEach(track => {
+          track.stop()
+        })
+        streamRef.current = null
+      } catch (error) {
+        log('Error stopping stream:', error)
+      }
+    }
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+      videoRef.current = null
     }
   }
 
   const initScanner = async () => {
     log('Initializing scanner...')
-    if (!scannerRef.current) {
-      log('Scanner ref not ready')
+    if (!scannerRef.current || !isScanning) {
+      log('Scanner ref not ready or scanning disabled')
       return
     }
 
     try {
-      // Stop any existing stream
-      stopStream()
+      // Clean up any existing scanner/stream first
+      await stopScanner()
+
+      // Create video element
+      const video = document.createElement('video')
+      video.setAttribute('playsinline', 'true')
+      videoRef.current = video
 
       // Request camera access first
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -64,15 +103,14 @@ export function CameraScanner({
 
       // Store the stream reference
       streamRef.current = stream
+      video.srcObject = stream
 
-      // Wait for video element to be ready
-      const videoElement = document.createElement('video')
-      videoElement.srcObject = stream
+      // Wait for video to be ready
       await new Promise((resolve) => {
-        videoElement.onloadedmetadata = () => resolve(true)
+        video.onloadedmetadata = () => resolve(true)
       })
 
-      // Initialize Quagga with the active stream
+      // Initialize Quagga
       await new Promise((resolve, reject) => {
         Quagga.init(
           {
@@ -100,18 +138,11 @@ export function CameraScanner({
             },
             numOfWorkers: 2,
             decoder: {
-              readers: [
-                "ean_reader",
-                "ean_8_reader",
-                "code_128_reader",
-                "code_39_reader",
-                "upc_reader",
-                "upc_e_reader",
-              ],
+              readers,
               debug: {
-                drawBoundingBox: true,
-                showPattern: true,
-                drawScanline: true,
+                drawBoundingBox: showGuides,
+                showPattern: showGuides,
+                drawScanline: showGuides,
               },
               multiple: false,
             },
@@ -130,39 +161,12 @@ export function CameraScanner({
       })
 
       log('Scanner initialized successfully')
+      quaggaInitializedRef.current = true
       await Quagga.start()
       log('Scanner started')
       setIsLoading(false)
       setHasCamera(true)
       setPermissionDenied(false)
-
-      // Set up image processing handlers
-      Quagga.onProcessed((result) => {
-        if (!result?.codeResult) return
-
-        const ctx = Quagga.canvas.ctx.overlay
-        const canvas = Quagga.canvas.dom.overlay
-
-        if (!ctx || !canvas) return
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height)
-        
-        if (result.boxes) {
-          result.boxes
-            .filter((box) => box !== result.box)
-            .forEach((box) => {
-              Quagga.ImageDebug.drawPath(box, { x: 0, y: 1 }, ctx, { color: "yellow", lineWidth: 2 })
-            })
-        }
-
-        if (result.box) {
-          Quagga.ImageDebug.drawPath(result.box, { x: 0, y: 1 }, ctx, { color: "green", lineWidth: 2 })
-        }
-
-        if (result.codeResult?.code) {
-          Quagga.ImageDebug.drawPath(result.line, { x: 'x', y: 'y' }, ctx, { color: "red", lineWidth: 3 })
-        }
-      })
 
       // Set up detection handler
       Quagga.onDetected((result) => {
@@ -170,9 +174,39 @@ export function CameraScanner({
         onScan(result.codeResult.code)
       })
 
+      if (showGuides) {
+        // Set up image processing handlers for visual guides
+        Quagga.onProcessed((result) => {
+          if (!result?.codeResult) return
+
+          const ctx = Quagga.canvas.ctx.overlay
+          const canvas = Quagga.canvas.dom.overlay
+
+          if (!ctx || !canvas) return
+
+          ctx.clearRect(0, 0, canvas.width, canvas.height)
+          
+          if (result.boxes) {
+            result.boxes
+              .filter((box) => box !== result.box)
+              .forEach((box) => {
+                Quagga.ImageDebug.drawPath(box, { x: 0, y: 1 }, ctx, { color: "yellow", lineWidth: 2 })
+              })
+          }
+
+          if (result.box) {
+            Quagga.ImageDebug.drawPath(result.box, { x: 0, y: 1 }, ctx, { color: "green", lineWidth: 2 })
+          }
+
+          if (result.codeResult?.code) {
+            Quagga.ImageDebug.drawPath(result.line, { x: 'x', y: 'y' }, ctx, { color: "red", lineWidth: 3 })
+          }
+        })
+      }
+
     } catch (error) {
       log('Error in initScanner:', error)
-      stopStream()
+      await stopScanner()
       
       if (error instanceof DOMException) {
         switch (error.name) {
@@ -211,18 +245,30 @@ export function CameraScanner({
     log('Component mounted')
     mountedRef.current = true
 
-    // Only initialize if we're supposed to be scanning
-    if (isScanning) {
-      initScanner()
-    }
-
     return () => {
       log('Component unmounting')
       mountedRef.current = false
-      Quagga.stop()
-      stopStream()
+      stopScanner()
     }
-  }, [isScanning, initializationAttempts])
+  }, [])
+
+  // Handle scanning state changes
+  useEffect(() => {
+    if (!mountedRef.current) return
+
+    const setupScanner = async () => {
+      if (isScanning) {
+        log('Scanning state changed to true, initializing scanner')
+        setIsLoading(true)
+        await initScanner()
+      } else {
+        log('Scanning state changed to false, stopping scanner')
+        await stopScanner()
+      }
+    }
+
+    setupScanner()
+  }, [isScanning, readers]) // Add readers to dependencies
 
   // Initialize audio
   useEffect(() => {
@@ -231,81 +277,43 @@ export function CameraScanner({
 
     return () => {
       if (audioRef.current) {
-        audioRef.current.pause()
         audioRef.current = null
       }
     }
   }, [])
 
   return (
-    <div className="relative w-full h-full bg-black">
-      {!hasCamera || permissionDenied ? (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 p-4">
-          <div className="text-center space-y-4">
-            <CameraOff className="h-8 w-8 mx-auto text-muted-foreground" />
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                {permissionDenied 
-                  ? "Camera access was denied. Please grant permission to use your camera."
-                  : "No camera found or camera access is not supported in this browser."}
-              </p>
-              <div className="flex flex-col gap-2 items-center">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleRetry}
-                  className="gap-2"
-                >
-                  <RefreshCcw className="h-4 w-4" />
-                  Try Again
-                </Button>
-              </div>
-            </div>
+    <div className="relative w-full h-full" ref={scannerRef}>
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+          <div className="text-white">Initializing camera...</div>
+        </div>
+      )}
+
+      {!hasCamera && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black">
+          <div className="text-center text-white space-y-4">
+            <CameraOff className="h-12 w-12 mx-auto" />
+            <p>No camera found</p>
+            <Button onClick={handleRetry}>
+              <RefreshCcw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
           </div>
         </div>
-      ) : (
-        <>
-          <div
-            ref={scannerRef}
-            className="absolute inset-0 flex items-center justify-center"
-            style={{
-              overflow: 'hidden',
-            }}
-          >
-            <video
-              className="absolute min-w-full min-h-full object-cover"
-              style={{
-                transform: 'scaleX(-1)', // Mirror the video
-              }}
-            />
+      )}
+
+      {permissionDenied && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black">
+          <div className="text-center text-white space-y-4">
+            <Camera className="h-12 w-12 mx-auto" />
+            <p>Camera permission denied</p>
+            <Button onClick={handleRetry}>
+              <RefreshCcw className="h-4 w-4 mr-2" />
+              Request Permission
+            </Button>
           </div>
-          {isScanning && showGuides && (
-            <div className="absolute inset-0 pointer-events-none">
-              {/* Scanning guides */}
-              <div className="absolute inset-[10%] h-[80%] border-2 border-primary/30 rounded-lg">
-                {/* Corner markers */}
-                <div className="absolute -top-2 -left-2 w-4 h-4 border-t-2 border-l-2 border-primary" />
-                <div className="absolute -top-2 -right-2 w-4 h-4 border-t-2 border-r-2 border-primary" />
-                <div className="absolute -bottom-2 -left-2 w-4 h-4 border-b-2 border-l-2 border-primary" />
-                <div className="absolute -bottom-2 -right-2 w-4 h-4 border-b-2 border-r-2 border-primary" />
-                {/* Scanning line */}
-                <div className="animate-scan" />
-              </div>
-              
-              {/* Scanning indicator */}
-              {showStatus && (
-                <div className="absolute bottom-4 left-0 right-0 flex items-center justify-center">
-                  <div className="bg-black/50 backdrop-blur-sm text-white px-4 py-2 rounded-full flex items-center gap-2">
-                    <Camera className="h-4 w-4 animate-pulse" />
-                    <span className="text-sm">
-                      {isLoading ? "Initializing camera..." : "Scanning..."}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </>
+        </div>
       )}
     </div>
   )

@@ -18,9 +18,9 @@ export function MainNav({
       active: pathname === "/",
     },
     {
-      href: "/stock/add",
-      label: "Add Stock",
-      active: pathname === "/stock/add",
+      href: "/stock/putaway",
+      label: "Putaway",
+      active: pathname === "/stock/putaway",
     },
     {
       href: "/stock/remove",

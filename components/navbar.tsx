@@ -44,6 +44,10 @@ export function Navbar() {
       href: "/locations",
       label: "Locations",
     },
+    {
+      href: "/settings",
+      label: "Settings",
+    },
   ]
 
   return (

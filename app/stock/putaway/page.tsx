@@ -9,6 +9,13 @@ import { Label } from "@/components/ui/label"
 import { toast } from "@/components/ui/use-toast"
 import { Loader2, Minus, Plus, Trash2 } from "lucide-react"
 import { CameraScanner } from "@/components/camera-scanner"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 type PutawayState = 
   | "ready_to_scan_bay"    // Initial state, waiting for user to click scan
@@ -40,6 +47,18 @@ interface NewItem {
   barcode: string
   sku: string
   name: string
+}
+
+interface MultipleCompanyResponse {
+  multipleCompanies: true
+  items: Array<{
+    id: string
+    sku: string
+    name: string
+    barcode: string
+    companyId: string
+    companyCode: string
+  }>
 }
 
 export default function PutawayPage() {
@@ -102,6 +121,40 @@ export default function PutawayPage() {
     console.log("[PUTAWAY] No initial items")
     return []
   })
+
+  // Add state for company selection
+  const [companySelectionItems, setCompanySelectionItems] = useState<MultipleCompanyResponse["items"] | null>(null)
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null)
+
+  // Add state for companies
+  const [companies, setCompanies] = useState<Array<{ id: string, code: string }>>([])
+  const [selectedCompanyForNewItem, setSelectedCompanyForNewItem] = useState<string>("")
+
+  // Fetch companies when dialog opens
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      if (isNewItemDialogOpen) {
+        try {
+          const response = await fetch('/api/companies')
+          if (!response.ok) throw new Error('Failed to fetch companies')
+          const data = await response.json()
+          setCompanies(data)
+          // If there's only one company, auto-select it
+          if (data.length === 1) {
+            setSelectedCompanyForNewItem(data[0].id)
+          }
+        } catch (error) {
+          console.error('Failed to fetch companies:', error)
+          toast({
+            title: "Error",
+            description: "Failed to load companies. Please try again.",
+            variant: "destructive",
+          })
+        }
+      }
+    }
+    fetchCompanies()
+  }, [isNewItemDialogOpen])
 
   // Fetch item effect
   useEffect(() => {
@@ -236,12 +289,13 @@ export default function PutawayPage() {
 
   // Start scanning
   const startScanning = () => {
-    setIsScanning(true)
+    console.log("[PUTAWAY] Starting scanning from state:", state)
     if (state === "ready_to_scan_bay") {
       setState("scanning_bay")
     } else if (state === "ready_to_scan_items") {
       setState("scanning_items")
     }
+    setIsScanning(true)
   }
 
   // Stop scanning
@@ -327,6 +381,14 @@ export default function PutawayPage() {
 
   // Handle any barcode input (from camera or keyboard)
   const handleBarcodeInput = async (code: string) => {
+    console.log("[PUTAWAY] Handling barcode input:", { code, state })
+    
+    // Only process if we're in a scanning state
+    if (state !== "scanning_bay" && state !== "scanning_items") {
+      console.log("[PUTAWAY] Ignoring barcode input - not in scanning state")
+      return
+    }
+    
     if (state === "scanning_bay") {
       await handleBayScan(code)
     } else if (state === "scanning_items") {
@@ -373,39 +435,53 @@ export default function PutawayPage() {
   // Handle item barcode scan
   const handleItemScan = async (code: string) => {
     console.log("[PUTAWAY] Handling item scan:", code)
-    console.log("[PUTAWAY] Current scanned items:", scannedItems)
-    setIsScanning(false)
+    console.log("[PUTAWAY] Current state:", state)
     
     try {
+      console.log("[PUTAWAY] Fetching item data for barcode:", code)
       const response = await fetch(`/api/items/barcode/${code}`)
+      console.log("[PUTAWAY] Response status:", response.status)
       
-      if (!response.ok) {
-        if (response.status === 404) {
-          // Item not found, show dialog to add new item
-          console.log("[PUTAWAY] Item not found, opening new item dialog")
-          setNewItem({ barcode: code, sku: "", name: "" })
-          setIsNewItemDialogOpen(true)
-        } else {
-          throw new Error("Failed to check item")
-        }
+      if (response.status === 404) {
+        console.log("[PUTAWAY] Item not found, opening new item dialog")
+        setNewItem({ barcode: code, sku: "", name: "" })
+        setIsNewItemDialogOpen(true)
+        setIsScanning(false)
         return
       }
 
-      const item = await response.json()
-      console.log("[PUTAWAY] Item found:", item)
-      const scannedItem: ScannedItem = {
-        id: item.id,
-        sku: item.sku,
-        name: item.name,
-        barcode: item.barcode,
+      const data = await response.json()
+      console.log("[PUTAWAY] Response data:", data)
+      
+      // Important: Stop scanning immediately after getting a response
+      setIsScanning(false)
+
+      if (response.status === 300 && "multipleCompanies" in data) {
+        // Multiple companies have this item, show company selection
+        console.log("[PUTAWAY] Multiple companies found for item:", data.items)
+        setCompanySelectionItems(data.items)
+        return
+      }
+
+      // Single item found - explicitly set states in the correct order
+      console.log("[PUTAWAY] Single item found, proceeding to confirmation")
+      const scannedItem = {
+        id: data.id,
+        sku: data.sku,
+        name: data.name,
+        barcode: data.barcode,
         quantity: 1
       }
       
+      console.log("[PUTAWAY] Setting current item:", scannedItem)
       setCurrentItem(scannedItem)
+      
+      console.log("[PUTAWAY] Setting state to confirming_item")
       setState("confirming_item")
+      
       toast({
         title: "Item Found",
-        description: `Found item: ${item.name}. Please confirm this is correct.`,
+        description: `Found item: ${data.name}. Please confirm this is correct.`,
       })
     } catch (error) {
       console.error("[PUTAWAY] Error checking item:", error)
@@ -414,8 +490,29 @@ export default function PutawayPage() {
         description: "Failed to process barcode. Please try again.",
         variant: "destructive",
       })
-      setIsScanning(true)
+      setState("ready_to_scan_items")
+      setIsScanning(false)
     }
+  }
+
+  const handleItemFound = (item: any) => {
+    console.log("[PUTAWAY] Processing found item:", item)
+    const scannedItem = {
+      id: item.id,
+      sku: item.sku,
+      name: item.name,
+      barcode: item.barcode,
+      quantity: 1
+    }
+    
+    console.log("[PUTAWAY] Created scanned item:", scannedItem)
+    setCurrentItem(scannedItem)
+    console.log("[PUTAWAY] Setting state to confirming_item")
+    setState("confirming_item")
+    toast({
+      title: "Item Found",
+      description: `Found item: ${item.name}. Please confirm this is correct.`,
+    })
   }
 
   // Handle manual input submission
@@ -484,11 +581,21 @@ export default function PutawayPage() {
       isScanning,
       isNewItemDialogOpen,
       isSubmitting,
-      newItem
+      newItem,
+      selectedCompanyForNewItem
     })
 
     if (isSubmitting) {
       console.log("[PUTAWAY] Already submitting, preventing double submission")
+      return
+    }
+
+    if (!selectedCompanyForNewItem) {
+      toast({
+        title: "Error",
+        description: "Please select a company",
+        variant: "destructive",
+      })
       return
     }
 
@@ -506,13 +613,16 @@ export default function PutawayPage() {
         return
       }
 
-      console.log("[PUTAWAY] Sending POST request with data:", newItem)
+      console.log("[PUTAWAY] Sending POST request with data:", { ...newItem, companyId: selectedCompanyForNewItem })
       const response = await fetch("/api/items", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(newItem),
+        body: JSON.stringify({
+          ...newItem,
+          companyId: selectedCompanyForNewItem
+        }),
       })
 
       const data = await response.json()
@@ -540,6 +650,7 @@ export default function PutawayPage() {
       // 2. Close the dialog and reset form
       setIsNewItemDialogOpen(false)
       setNewItem({ barcode: "", sku: "", name: "" })
+      setSelectedCompanyForNewItem("")
       
       // 3. Update the page state
       setState("confirming_item")
@@ -634,6 +745,33 @@ export default function PutawayPage() {
       newItem
     })
   }, [state, currentItem, isScanning, isNewItemDialogOpen, isSubmitting, newItem])
+
+  // Monitor state changes
+  useEffect(() => {
+    console.log("[PUTAWAY] State changed:", {
+      state,
+      currentItem,
+      isScanning,
+      bayLabel,
+      scannedItems,
+      isNewItemDialogOpen,
+      isManualDialogOpen,
+      isNewLocationDialogOpen,
+      isSubmitting,
+      companySelectionItems
+    })
+  }, [
+    state,
+    currentItem,
+    isScanning,
+    bayLabel,
+    scannedItems,
+    isNewItemDialogOpen,
+    isManualDialogOpen,
+    isNewLocationDialogOpen,
+    isSubmitting,
+    companySelectionItems
+  ])
 
   return (
     <div className="container mx-auto p-4">
@@ -1097,6 +1235,7 @@ export default function PutawayPage() {
               console.log("[PUTAWAY] Dialog closing, resetting states")
               setIsScanning(true)
               setNewItem({ barcode: "", sku: "", name: "" })
+              setSelectedCompanyForNewItem("")
               setIsNewItemDialogOpen(false)
             }
           }}
@@ -1115,6 +1254,24 @@ export default function PutawayPage() {
               }} 
               className="space-y-4"
             >
+              <div className="space-y-2">
+                <Label htmlFor="company">Company</Label>
+                <Select
+                  value={selectedCompanyForNewItem}
+                  onValueChange={setSelectedCompanyForNewItem}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companies.map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.code}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="barcode">Barcode</Label>
                 <Input
@@ -1163,7 +1320,7 @@ export default function PutawayPage() {
                 </Button>
                 <Button 
                   type="submit" 
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !selectedCompanyForNewItem}
                 >
                   {isSubmitting ? (
                     <>
@@ -1176,6 +1333,52 @@ export default function PutawayPage() {
                 </Button>
               </DialogFooter>
             </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Company Selection Dialog */}
+        <Dialog 
+          open={!!companySelectionItems} 
+          onOpenChange={(open) => {
+            if (!open) {
+              setCompanySelectionItems(null)
+              setSelectedCompanyId(null)
+              setIsScanning(true)
+            }
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Select Company</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                This item exists in multiple companies. Please select the correct company:
+              </p>
+              <Select
+                value={selectedCompanyId || ""}
+                onValueChange={(value) => {
+                  setSelectedCompanyId(value)
+                  const selectedItem = companySelectionItems?.find(item => item.companyId === value)
+                  if (selectedItem) {
+                    handleItemFound(selectedItem)
+                    setCompanySelectionItems(null)
+                    setSelectedCompanyId(null)
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a company" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companySelectionItems?.map((item) => (
+                    <SelectItem key={item.companyId} value={item.companyId}>
+                      {item.companyCode} - {item.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

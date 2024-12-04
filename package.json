@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0",
-    "dev:https": "local-ssl-proxy --source 3001 --target 3000 --cert localhost.pem --key localhost-key.pem",
+    "dev:https": "next dev --hostname 0.0.0.0 --experimental-https --experimental-https-key=./localhost-key.pem --experimental-https-cert=./localhost.pem",
     "dev:with-https": "concurrently \"npm run dev\" \"npm run dev:https\"",
     "generate-cert": "node generate-cert.js",
     "build": "next build",

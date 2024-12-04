@@ -28,20 +28,37 @@ model Location {
   @@index([label])
 }
 
-model Item {
+model Company {
   id          String   @id @default(cuid())
-  sku         String   @unique
-  name        String
-  description String?
-  barcode     String   @unique
+  code        String   @unique
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relations
-  stocks       Stock[]
+  items       Item[]
+  users       User[]
+
+  @@index([code])
+}
+
+model Item {
+  id          String   @id @default(cuid())
+  sku         String
+  name        String
+  description String?
+  barcode     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  company     Company  @relation(fields: [companyId], references: [id])
+  companyId   String
+  stocks      Stock[]
   transactions Transaction[]
 
-  @@index([sku, barcode])
+  @@unique([companyId, sku])    // SKU must be unique within a company
+  @@unique([companyId, barcode]) // Barcode must be unique within a company
+  @@index([companyId, sku, barcode])
 }
 
 model Stock {
@@ -92,9 +109,12 @@ model User {
   updatedAt     DateTime  @updatedAt
 
   // Relations
+  company       Company?  @relation(fields: [companyId], references: [id])
+  companyId     String?
   transactions  Transaction[]
 
   @@index([username])
+  @@index([companyId])
 }
 
 enum TransactionType {

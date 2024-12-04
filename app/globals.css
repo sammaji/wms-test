@@ -164,7 +164,39 @@
     @apply border-border;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+  }
+
+  /* Make buttons and interactive elements non-selectable */
+  button, 
+  .button,
+  [role="button"],
+  .navbar,
+  .no-select {
     user-select: none;
+  }
+
+  /* Make text content selectable */
+  p, 
+  h1, 
+  h2, 
+  h3, 
+  h4, 
+  h5, 
+  h6,
+  span,
+  td,
+  th,
+  li {
+    user-select: text;
+  }
+
+  /* Keep form inputs selectable */
+  input, textarea, select {
+    @apply text-base;
+    user-select: text;
+    font-size: 16px !important;
+    max-height: 100%;
+    transform: scale(1);
   }
 
   html {
@@ -185,14 +217,6 @@
     position: fixed;
     width: 100%;
     -webkit-overflow-scrolling: touch;
-  }
-
-  input, textarea, select {
-    @apply text-base;
-    user-select: text;
-    font-size: 16px !important; /* Prevents iOS zoom */
-    max-height: 100%;
-    transform: scale(1); /* Prevents Android zoom */
   }
 
   /* Prevent pull-to-refresh and overscroll effects */

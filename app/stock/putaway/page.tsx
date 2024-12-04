@@ -69,22 +69,13 @@ export default function PutawayPage() {
   const itemsFromUrl = searchParams.get("items")
   const isNewItem = searchParams.get("newItem") === "true"
 
-  console.log("[PUTAWAY] Page mounted with params:", {
-    itemId,
-    bayFromUrl,
-    itemsFromUrl,
-    isNewItem
-  })
-
   // State declarations
   const [state, setState] = useState<PutawayState>(() => {
     // If we have a bay from URL, start with scanning items
     if (bayFromUrl) {
-      console.log("[PUTAWAY] Starting with ready_to_scan_items due to bay in URL:", bayFromUrl)
       return "ready_to_scan_items"
     }
     // Otherwise start with scanning bay
-    console.log("[PUTAWAY] Starting with ready_to_scan_bay (no bay in URL)")
     return "ready_to_scan_bay"
   })
   const [currentItem, setCurrentItem] = useState<ScannedItem | null>(null)
@@ -109,16 +100,12 @@ export default function PutawayPage() {
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>(() => {
     if (itemsFromUrl) {
       try {
-        console.log("[PUTAWAY] Parsing initial items from URL:", itemsFromUrl)
         const items = JSON.parse(decodeURIComponent(itemsFromUrl))
-        console.log("[PUTAWAY] Initial items parsed:", items)
         return items
       } catch (e) {
-        console.log("[PUTAWAY] Error parsing initial items:", e)
         return []
       }
     }
-    console.log("[PUTAWAY] No initial items")
     return []
   })
 
@@ -160,11 +147,9 @@ export default function PutawayPage() {
   useEffect(() => {
     const fetchItemIfNeeded = async () => {
       if (!itemId) {
-        console.log("[PUTAWAY] No itemId to fetch")
         return
       }
 
-      console.log("[PUTAWAY] Fetching item with ID:", itemId)
       try {
         const response = await fetch(`/api/items/${itemId}`)
         if (!response.ok) {
@@ -172,7 +157,6 @@ export default function PutawayPage() {
         }
 
         const item = await response.json()
-        console.log("[PUTAWAY] Successfully fetched item:", item)
 
         const scannedItem = {
           id: item.id,
@@ -182,7 +166,6 @@ export default function PutawayPage() {
           quantity: 1
         }
 
-        console.log("[PUTAWAY] Setting current item:", scannedItem)
         setCurrentItem(scannedItem)
         setState("confirming_item")
         setIsScanning(false)
@@ -202,16 +185,12 @@ export default function PutawayPage() {
 
   // Handle item confirmation
   const handleItemConfirmation = (confirmed: boolean) => {
-    console.log("[PUTAWAY] Item confirmation:", { confirmed, currentItem, existingItems: scannedItems })
-    
     if (confirmed && currentItem) {
       // Add item to scanned items list
       const itemToAdd = { ...currentItem, quantity }
-      console.log("[PUTAWAY] Adding item to list:", itemToAdd)
       
       setScannedItems(prev => {
         const updated = [...prev, itemToAdd]
-        console.log("[PUTAWAY] Updated scanned items:", updated)
         return updated
       })
       
@@ -225,7 +204,6 @@ export default function PutawayPage() {
         description: "Ready to scan next item",
       })
     } else {
-      console.log("[PUTAWAY] Item confirmation cancelled")
       setCurrentItem(null)
       setQuantity(1)
       setState("ready_to_scan_items")
@@ -242,11 +220,9 @@ export default function PutawayPage() {
   useEffect(() => {
     const addNewItemIfNeeded = async () => {
       if (itemId && isNewItem) {
-        console.log("[PUTAWAY] Adding new item with ID:", itemId)
         try {
           const response = await fetch(`/api/items/${itemId}`)
           const item = await response.json()
-          console.log("[PUTAWAY] Fetched new item:", item)
 
           const newItem = {
             id: item.id,
@@ -258,7 +234,6 @@ export default function PutawayPage() {
 
           setScannedItems(prev => {
             const updated = [...prev, newItem]
-            console.log("[PUTAWAY] Updated scanned items:", updated)
             return updated
           })
 
@@ -289,7 +264,6 @@ export default function PutawayPage() {
 
   // Start scanning
   const startScanning = () => {
-    console.log("[PUTAWAY] Starting scanning from state:", state)
     if (state === "ready_to_scan_bay") {
       setState("scanning_bay")
     } else if (state === "ready_to_scan_items") {
@@ -301,6 +275,12 @@ export default function PutawayPage() {
   // Stop scanning
   const stopScanning = () => {
     setIsScanning(false)
+    // Reset to ready state based on current context
+    if (state === "scanning_bay") {
+      setState("ready_to_scan_bay")
+    } else if (state === "scanning_items") {
+      setState("ready_to_scan_items")
+    }
   }
 
   // Update item quantity
@@ -323,7 +303,7 @@ export default function PutawayPage() {
   const handleBayConfirmation = (confirmed: boolean) => {
     if (confirmed) {
       setState("ready_to_scan_items")
-      setIsScanning(false) // Don't start scanning automatically
+      setIsScanning(false)
       toast({
         title: "Bay Confirmed",
         description: `Ready to scan items for bay ${bayLabel}`,
@@ -381,11 +361,8 @@ export default function PutawayPage() {
 
   // Handle any barcode input (from camera or keyboard)
   const handleBarcodeInput = async (code: string) => {
-    console.log("[PUTAWAY] Handling barcode input:", { code, state })
-    
     // Only process if we're in a scanning state
     if (state !== "scanning_bay" && state !== "scanning_items") {
-      console.log("[PUTAWAY] Ignoring barcode input - not in scanning state")
       return
     }
     
@@ -398,7 +375,6 @@ export default function PutawayPage() {
 
   // Handle bay barcode scan
   const handleBayScan = async (code: string) => {
-    console.log("Handling bay scan:", code)
     try {
       const response = await fetch(`/api/locations/label/${code}`)
       
@@ -434,16 +410,10 @@ export default function PutawayPage() {
 
   // Handle item barcode scan
   const handleItemScan = async (code: string) => {
-    console.log("[PUTAWAY] Handling item scan:", code)
-    console.log("[PUTAWAY] Current state:", state)
-    
     try {
-      console.log("[PUTAWAY] Fetching item data for barcode:", code)
       const response = await fetch(`/api/items/barcode/${code}`)
-      console.log("[PUTAWAY] Response status:", response.status)
       
       if (response.status === 404) {
-        console.log("[PUTAWAY] Item not found, opening new item dialog")
         setNewItem({ barcode: code, sku: "", name: "" })
         setIsNewItemDialogOpen(true)
         setIsScanning(false)
@@ -451,20 +421,17 @@ export default function PutawayPage() {
       }
 
       const data = await response.json()
-      console.log("[PUTAWAY] Response data:", data)
       
       // Important: Stop scanning immediately after getting a response
       setIsScanning(false)
 
       if (response.status === 300 && "multipleCompanies" in data) {
         // Multiple companies have this item, show company selection
-        console.log("[PUTAWAY] Multiple companies found for item:", data.items)
         setCompanySelectionItems(data.items)
         return
       }
 
       // Single item found - explicitly set states in the correct order
-      console.log("[PUTAWAY] Single item found, proceeding to confirmation")
       const scannedItem = {
         id: data.id,
         sku: data.sku,
@@ -473,10 +440,8 @@ export default function PutawayPage() {
         quantity: 1
       }
       
-      console.log("[PUTAWAY] Setting current item:", scannedItem)
       setCurrentItem(scannedItem)
       
-      console.log("[PUTAWAY] Setting state to confirming_item")
       setState("confirming_item")
       
       toast({
@@ -485,18 +450,12 @@ export default function PutawayPage() {
       })
     } catch (error) {
       console.error("[PUTAWAY] Error checking item:", error)
-      toast({
-        title: "Error",
-        description: "Failed to process barcode. Please try again.",
-        variant: "destructive",
-      })
       setState("ready_to_scan_items")
       setIsScanning(false)
     }
   }
 
   const handleItemFound = (item: any) => {
-    console.log("[PUTAWAY] Processing found item:", item)
     const scannedItem = {
       id: item.id,
       sku: item.sku,
@@ -505,9 +464,7 @@ export default function PutawayPage() {
       quantity: 1
     }
     
-    console.log("[PUTAWAY] Created scanned item:", scannedItem)
     setCurrentItem(scannedItem)
-    console.log("[PUTAWAY] Setting state to confirming_item")
     setState("confirming_item")
     toast({
       title: "Item Found",
@@ -515,14 +472,30 @@ export default function PutawayPage() {
     })
   }
 
+  // Handle manual dialog
+  const openManualDialog = () => {
+    setIsScanning(false)
+    setIsManualDialogOpen(true)
+  }
+
+  const closeManualDialog = () => {
+    setManualInput("")
+    setIsManualDialogOpen(false)
+  }
+
   // Handle manual input submission
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (manualInput) {
-      handleBarcodeInput(manualInput)
-      setManualInput("")
-      setIsManualDialogOpen(false)
+    
+    if (!manualInput) {
+      return
     }
+
+    // Process the manual input
+    handleBarcodeInput(manualInput)
+    
+    // Clear the input and close dialog
+    closeManualDialog()
   }
 
   // Handle new location submission
@@ -574,19 +547,8 @@ export default function PutawayPage() {
   // Handle new item submission
   const handleAddNewItem = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("[PUTAWAY] handleAddNewItem triggered")
-    console.log("[PUTAWAY] Current state before submission:", {
-      state,
-      currentItem,
-      isScanning,
-      isNewItemDialogOpen,
-      isSubmitting,
-      newItem,
-      selectedCompanyForNewItem
-    })
-
+    
     if (isSubmitting) {
-      console.log("[PUTAWAY] Already submitting, preventing double submission")
       return
     }
 
@@ -601,7 +563,6 @@ export default function PutawayPage() {
 
     try {
       setIsSubmitting(true)
-      console.log("[PUTAWAY] Set isSubmitting to true")
 
       if (!newItem.barcode || !newItem.name) {
         console.error("[PUTAWAY] Missing required fields")
@@ -642,26 +603,19 @@ export default function PutawayPage() {
       }
 
       // Important: Update all states in a specific order
-      console.log("[PUTAWAY] Beginning state updates")
-      
-      // 1. Update the current item first
       setCurrentItem(scannedItem)
       
-      // 2. Close the dialog and reset form
       setIsNewItemDialogOpen(false)
       setNewItem({ barcode: "", sku: "", name: "" })
       setSelectedCompanyForNewItem("")
       
-      // 3. Update the page state
       setState("confirming_item")
-      
-      console.log("[PUTAWAY] State updates complete")
       
       toast({
         title: "Success",
         description: "Item created successfully.",
       })
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("[PUTAWAY] Error in handleAddNewItem:", error)
       toast({
         title: "Error",
@@ -690,7 +644,6 @@ export default function PutawayPage() {
       // If it's Enter/Return, process the barcode
       if (e.key === 'Enter') {
         if (buffer.length > 0) {
-          console.log("Processing barcode from keyboard:", buffer) // Debug log
           handleBarcodeInput(buffer)
           buffer = "" // Clear buffer after processing
         }
@@ -699,7 +652,6 @@ export default function PutawayPage() {
 
       // Add character to buffer
       buffer += e.key
-      console.log("Current buffer:", buffer) // Debug log
 
       // Set timeout to clear buffer if no new keypress within 50ms
       timeout = setTimeout(() => {
@@ -718,60 +670,37 @@ export default function PutawayPage() {
     }
   }, [isScanning, handleBarcodeInput, state]) // Add all required dependencies
 
-  // Add this useEffect to monitor state changes
-  useEffect(() => {
-    console.log("[PUTAWAY] State changed:", {
-      state,
-      currentItem,
-      isScanning,
-      isNewItemDialogOpen,
-      isSubmitting
-    })
-  }, [state, currentItem, isScanning, isNewItemDialogOpen, isSubmitting])
+  // Handle dialog close events
+  const handleNewItemDialogClose = (open: boolean) => {
+    if (!open && !isSubmitting) {
+      setState("ready_to_scan_items")
+      setNewItem({ barcode: "", sku: "", name: "" })
+      setSelectedCompanyForNewItem("")
+      setIsNewItemDialogOpen(false)
+    }
+  }
 
-  // Debug logging for initial mount and all state changes
-  useEffect(() => {
-    console.log("[PUTAWAY] Component mounted")
-    return () => console.log("[PUTAWAY] Component unmounted")
-  }, [])
+  const handleNewLocationDialogClose = (open: boolean) => {
+    if (!open && !isSubmitting) {
+      setState("ready_to_scan_bay")
+      setPendingLabel("")
+      setNewLocation({
+        aisle: "",
+        bay: "",
+        height: "",
+        type: "BAY"
+      })
+      setIsNewLocationDialogOpen(false)
+    }
+  }
 
-  useEffect(() => {
-    console.log("[PUTAWAY] State changed:", {
-      state,
-      currentItem,
-      isScanning,
-      isNewItemDialogOpen,
-      isSubmitting,
-      newItem
-    })
-  }, [state, currentItem, isScanning, isNewItemDialogOpen, isSubmitting, newItem])
-
-  // Monitor state changes
-  useEffect(() => {
-    console.log("[PUTAWAY] State changed:", {
-      state,
-      currentItem,
-      isScanning,
-      bayLabel,
-      scannedItems,
-      isNewItemDialogOpen,
-      isManualDialogOpen,
-      isNewLocationDialogOpen,
-      isSubmitting,
-      companySelectionItems
-    })
-  }, [
-    state,
-    currentItem,
-    isScanning,
-    bayLabel,
-    scannedItems,
-    isNewItemDialogOpen,
-    isManualDialogOpen,
-    isNewLocationDialogOpen,
-    isSubmitting,
-    companySelectionItems
-  ])
+  const handleCompanySelectionDialogClose = (open: boolean) => {
+    if (!open) {
+      setCompanySelectionItems(null)
+      setSelectedCompanyId(null)
+      setState("ready_to_scan_items")
+    }
+  }
 
   return (
     <div className="container mx-auto p-4">
@@ -904,36 +833,54 @@ export default function PutawayPage() {
               >
                 Cancel Scan
               </Button>
-              <Dialog open={isManualDialogOpen} onOpenChange={setIsManualDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline">Enter Manually</Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>
-                      {state === "scanning_bay" ? "Enter Bay Location" : "Enter Item Barcode"}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleManualSubmit} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="manual-input">
-                        {state === "scanning_bay" ? "Bay Label" : "Barcode"}
-                      </Label>
-                      <Input
-                        id="manual-input"
-                        value={manualInput}
-                        onChange={(e) => setManualInput(e.target.value)}
-                        placeholder={state === "scanning_bay" ? "Enter bay label..." : "Enter barcode..."}
-                        autoComplete="off"
-                      />
-                    </div>
-                    <DialogFooter>
-                      <Button type="submit">Submit</Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
+              <Button 
+                variant="outline"
+                onClick={openManualDialog}
+              >
+                Enter Manually
+              </Button>
             </div>
+
+            {/* Manual Entry Dialog */}
+            <Dialog 
+              open={isManualDialogOpen} 
+              onOpenChange={closeManualDialog}
+            >
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>
+                    {state === "scanning_bay" ? "Enter Bay Location" : "Enter Item Barcode"}
+                  </DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleManualSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="manual-input">
+                      {state === "scanning_bay" ? "Bay Label" : "Barcode"}
+                    </Label>
+                    <Input
+                      id="manual-input"
+                      value={manualInput}
+                      onChange={(e) => setManualInput(e.target.value)}
+                      placeholder={state === "scanning_bay" ? "Enter bay label..." : "Enter barcode..."}
+                      autoComplete="off"
+                      autoFocus
+                    />
+                  </div>
+                  <DialogFooter>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={closeManualDialog}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={!manualInput}>
+                      Submit
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
 
             <div className="w-full max-w-lg mx-auto">
               <CameraScanner
@@ -1155,7 +1102,7 @@ export default function PutawayPage() {
         )}
 
         {/* Existing dialogs */}
-        <Dialog open={isNewLocationDialogOpen} onOpenChange={setIsNewLocationDialogOpen}>
+        <Dialog open={isNewLocationDialogOpen} onOpenChange={handleNewLocationDialogClose}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Add New Location</DialogTitle>
@@ -1208,7 +1155,7 @@ export default function PutawayPage() {
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    setIsNewLocationDialogOpen(false)
+                    handleNewLocationDialogClose(true)
                     setIsScanning(true)
                   }}
                   disabled={isSubmitting}
@@ -1229,16 +1176,7 @@ export default function PutawayPage() {
         {/* New Item Dialog */}
         <Dialog 
           open={isNewItemDialogOpen} 
-          onOpenChange={(open) => {
-            console.log("[PUTAWAY] Dialog state changing to:", open)
-            if (!open && !isSubmitting) {  // Only close if not submitting
-              console.log("[PUTAWAY] Dialog closing, resetting states")
-              setIsScanning(true)
-              setNewItem({ barcode: "", sku: "", name: "" })
-              setSelectedCompanyForNewItem("")
-              setIsNewItemDialogOpen(false)
-            }
-          }}
+          onOpenChange={handleNewItemDialogClose}
         >
           <DialogContent>
             <DialogHeader>
@@ -1246,8 +1184,7 @@ export default function PutawayPage() {
             </DialogHeader>
             <form 
               onSubmit={(e) => {
-                console.log("[PUTAWAY] Form submit event triggered")
-                e.preventDefault() // Prevent default here to ensure it's always called
+                e.preventDefault()
                 if (!isSubmitting) {
                   handleAddNewItem(e)
                 }
@@ -1309,8 +1246,7 @@ export default function PutawayPage() {
                   variant="outline"
                   onClick={() => {
                     if (!isSubmitting) {
-                      console.log("[PUTAWAY] Cancel button clicked")
-                      setIsNewItemDialogOpen(false)
+                      handleNewItemDialogClose(true)
                       setIsScanning(true)
                     }
                   }}
@@ -1339,13 +1275,7 @@ export default function PutawayPage() {
         {/* Company Selection Dialog */}
         <Dialog 
           open={!!companySelectionItems} 
-          onOpenChange={(open) => {
-            if (!open) {
-              setCompanySelectionItems(null)
-              setSelectedCompanyId(null)
-              setIsScanning(true)
-            }
-          }}
+          onOpenChange={handleCompanySelectionDialogClose}
         >
           <DialogContent>
             <DialogHeader>

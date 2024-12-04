@@ -5,7 +5,13 @@ import { prisma } from "@/lib/db"
 export async function GET() {
   try {
     const companies = await prisma.company.findMany({
-      orderBy: { code: "asc" }
+      select: {
+        id: true,
+        code: true
+      },
+      orderBy: {
+        code: 'asc'
+      }
     })
     return NextResponse.json(companies)
   } catch (error) {
@@ -33,7 +39,9 @@ export async function POST(request: Request) {
 
     // Check for existing company with same code
     const existing = await prisma.company.findUnique({
-      where: { code: code.toUpperCase() }
+      where: {
+        code: code.toUpperCase()
+      }
     })
 
     if (existing) {

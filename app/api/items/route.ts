@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
+import type { Prisma } from "@prisma/client"
+
+// Use Prisma's inferred types
+type ItemWithCompany = Prisma.ItemGetPayload<{
+  include: { company: true }
+}>
 
 export async function POST(req: Request) {
   try {
@@ -23,7 +29,7 @@ export async function POST(req: Request) {
     const existingBarcode = await prisma.item.findFirst({
       where: { 
         barcode,
-        companyId
+        companyId: companyId
       }
     })
 
@@ -41,7 +47,7 @@ export async function POST(req: Request) {
       const existingSku = await prisma.item.findFirst({
         where: { 
           sku: itemSku,
-          companyId
+          companyId: companyId
         }
       })
 
@@ -66,7 +72,7 @@ export async function POST(req: Request) {
       include: {
         company: true
       }
-    })
+    }) as ItemWithCompany
     console.log("Item created successfully:", item)
 
     // Return formatted response

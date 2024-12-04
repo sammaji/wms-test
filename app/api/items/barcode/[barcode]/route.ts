@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
+import type { Prisma } from "@prisma/client"
+
+// Use Prisma's inferred types
+type ItemWithCompany = Prisma.ItemGetPayload<{
+  include: { company: true }
+}>
 
 export async function GET(
   req: Request,
@@ -8,13 +14,17 @@ export async function GET(
   try {
     console.log("[BARCODE_LOOKUP] Looking up barcode:", params.barcode)
     
-    // First, try to find all items with this barcode
     const items = await prisma.item.findMany({
       where: {
         barcode: params.barcode
       },
       include: {
-        company: true
+        company: {
+          select: {
+            id: true,
+            code: true
+          }
+        }
       }
     })
 
@@ -26,7 +36,6 @@ export async function GET(
     }
 
     if (items.length === 1) {
-      // If only one item exists with this barcode, return it directly
       const item = items[0]
       console.log("[BARCODE_LOOKUP] Single item found:", item)
       return NextResponse.json({
@@ -35,12 +44,11 @@ export async function GET(
         name: item.name,
         barcode: item.barcode,
         description: item.description,
-        companyId: item.companyId,
+        companyId: item.company.id,
         companyCode: item.company.code
       })
     }
 
-    // If multiple items exist with this barcode (one per company), return a special response
     console.log("[BARCODE_LOOKUP] Multiple items found:", items)
     return NextResponse.json({
       multipleCompanies: true,
@@ -49,10 +57,10 @@ export async function GET(
         sku: item.sku,
         name: item.name,
         barcode: item.barcode,
-        companyId: item.companyId,
+        companyId: item.company.id,
         companyCode: item.company.code
       }))
-    }, { status: 300 }) // Using 300 Multiple Choices status code
+    }, { status: 300 })
   } catch (error) {
     console.error("[BARCODE_LOOKUP] Error:", error)
     return new NextResponse("Internal Server Error", { status: 500 })

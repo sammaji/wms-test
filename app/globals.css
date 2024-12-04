@@ -162,10 +162,47 @@
 @layer base {
   * {
     @apply border-border;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
   }
+
+  html {
+    height: -webkit-fill-available;
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+    overscroll-behavior: none;
+  }
+
   body {
     @apply bg-background text-foreground;
+    height: 100vh;
+    height: -webkit-fill-available;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-y: none;
+    position: fixed;
+    width: 100%;
+    -webkit-overflow-scrolling: touch;
   }
+
+  input, textarea {
+    user-select: text;
+  }
+}
+
+@keyframes scan {
+  from {
+    transform: translateY(0%);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+.animate-scan {
+  animation: scan 2s linear infinite;
 }
 
 @keyframes scanAnimation {

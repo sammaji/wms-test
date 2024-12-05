@@ -159,6 +159,10 @@ export function RemoveStockForm() {
 
   return (
     <div className="space-y-4">
+      <p className="text-sm text-muted-foreground mb-4">
+        Scan or enter the bay location you are removing stock from
+      </p>
+      
       <div className="flex flex-col items-center justify-center gap-4">
         <Button
           size="lg"

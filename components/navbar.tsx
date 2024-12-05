@@ -29,10 +29,6 @@ export function Navbar() {
       label: "Putaway",
     },
     {
-      href: "/stock/sku",
-      label: "SKUs",
-    },
-    {
       href: "/stock/remove",
       label: "Remove Stock",
     },
@@ -47,6 +43,10 @@ export function Navbar() {
     {
       href: "/locations",
       label: "Locations",
+    },
+    {
+      href: "/stock/sku",
+      label: "SKUs",
     },
     {
       href: "/settings",

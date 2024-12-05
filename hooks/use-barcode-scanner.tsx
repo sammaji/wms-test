@@ -1,21 +1,13 @@
 import { useState, useEffect, useRef } from "react"
 
 interface UseBarcodeScanner {
+  isEnabled: boolean
   onScan: (barcode: string) => void
-  onError?: (error: Error) => void
-  isEnabled?: boolean
-  scannerType?: "camera" | "keyboard" | "both"
-  bufferDuration?: number
-  requiredScans?: number
 }
 
 export function useBarcodeScanner({
+  isEnabled,
   onScan,
-  onError,
-  isEnabled = true,
-  scannerType = "both",
-  bufferDuration = 50,
-  requiredScans = 3,
 }: UseBarcodeScanner) {
   const [lastScanned, setLastScanned] = useState<string>("")
   const bufferRef = useRef<string[]>([])
@@ -27,12 +19,12 @@ export function useBarcodeScanner({
     if (code === lastScanned) return
     
     bufferRef.current.push(code)
-    if (bufferRef.current.length > requiredScans) {
+    if (bufferRef.current.length > 3) {
       bufferRef.current.shift()
     }
 
     if (
-      bufferRef.current.length === requiredScans &&
+      bufferRef.current.length === 3 &&
       bufferRef.current.every((scan) => scan === code)
     ) {
       setLastScanned(code)
@@ -48,7 +40,7 @@ export function useBarcodeScanner({
 
   // Handle keyboard scanner
   useEffect(() => {
-    if (!isEnabled || !["keyboard", "both"].includes(scannerType)) return
+    if (!isEnabled) return
 
     const handleKeyPress = (e: KeyboardEvent) => {
       if (timeoutRef.current) {
@@ -67,7 +59,7 @@ export function useBarcodeScanner({
 
       timeoutRef.current = setTimeout(() => {
         keyboardBufferRef.current = ""
-      }, bufferDuration)
+      }, 50)
     }
 
     window.addEventListener('keypress', handleKeyPress)
@@ -78,7 +70,7 @@ export function useBarcodeScanner({
         clearTimeout(timeoutRef.current)
       }
     }
-  }, [isEnabled, scannerType, bufferDuration])
+  }, [isEnabled])
 
   return {
     lastScanned,

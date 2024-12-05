@@ -1,10 +1,66 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 
+export async function GET(request: Request) {
+  try {
+    // Get the location code from the URL
+    const url = new URL(request.url)
+    const locationCode = url.pathname.split('/').pop()
+    
+    console.log("GET /api/locations - Looking up location:", locationCode)
+
+    if (!locationCode) {
+      console.log("No location code provided")
+      return new NextResponse("Location code is required", { status: 400 })
+    }
+
+    // Parse the location code (expected format: {aisle}-{bay}-{height})
+    const parts = locationCode.split('-')
+    console.log("Location code parts:", parts)
+
+    // Find the location
+    const location = await prisma.location.findFirst({
+      where: { 
+        label: {
+          equals: locationCode,
+          mode: 'insensitive' // Case-insensitive match
+        }
+      }
+    })
+
+    console.log("Location lookup result:", location)
+
+    if (!location) {
+      // Try to find by individual parts if exact match fails
+      if (parts.length === 3) {
+        const [aisle, bay, height] = parts
+        const alternativeLocation = await prisma.location.findFirst({
+          where: {
+            aisle: { equals: aisle, mode: 'insensitive' },
+            bay: { equals: bay, mode: 'insensitive' },
+            height: { equals: height, mode: 'insensitive' }
+          }
+        })
+        console.log("Alternative location lookup result:", alternativeLocation)
+        
+        if (alternativeLocation) {
+          return NextResponse.json(alternativeLocation)
+        }
+      }
+      return new NextResponse("Location not found", { status: 404 })
+    }
+
+    return NextResponse.json(location)
+  } catch (error) {
+    console.error("Error looking up location:", error)
+    return new NextResponse("Internal Server Error", { status: 500 })
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    console.log("Received location creation request:", body)
+    console.log("POST /api/locations - Creating location:", body)
 
     const { aisle, bay, height, label, type } = body
 

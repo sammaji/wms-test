@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -25,16 +25,31 @@ interface AddSKUDialogProps {
   onOpenChange: (open: boolean) => void
   onSuccess: (newItem: any) => void
   companies: { id: string; code: string }[]
+  defaultBarcode?: string
 }
 
-export function AddSKUDialog({ open, onOpenChange, onSuccess, companies }: AddSKUDialogProps) {
+export function AddSKUDialog({ 
+  open, 
+  onOpenChange, 
+  onSuccess, 
+  companies,
+  defaultBarcode = ""
+}: AddSKUDialogProps) {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     sku: "",
     name: "",
-    barcode: "",
+    barcode: defaultBarcode,
     companyId: ""
   })
+
+  // Update form when defaultBarcode changes
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      barcode: defaultBarcode
+    }))
+  }, [defaultBarcode])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -56,6 +71,7 @@ export function AddSKUDialog({ open, onOpenChange, onSuccess, companies }: AddSK
       toast({
         title: "Success",
         description: "Item created successfully",
+        variant: "success"
       })
     } catch (error) {
       console.error("Failed to create item:", error)

@@ -6,6 +6,7 @@
 [2024-01-09] [14:45] [app/stock/add-sku/page.tsx] Added dedicated page for adding SKUs
 [2024-01-09] [14:45] [app/stock/putaway/add-sku/page.tsx] Updated putaway add SKU page to use new AddSkuForm component
 [2024-01-09] [14:50] [components/sku-table.tsx] Replaced SKU dialog with navigation to dedicated add SKU page
+[2024-01-09] [14:50] [components/sku-table.tsx] Fixed table width and column proportions for better desktop layout
 [2024-01-09] [14:55] [components/sku-table.tsx] Added automatic refresh handling when returning from add SKU page
 [2024-01-09] [14:55] [app/stock/add-sku/page.tsx] Updated to trigger SKU table refresh after adding new SKU
 [2024-01-09] [15:00] [app/stock/add-sku/page.tsx] Converted to client component and fixed redirection after adding SKU
@@ -53,3 +54,30 @@
 [2024-01-09] [17:55] [components/remove-items-form.tsx] Fixed barcode scanning to process scans immediately and added debug logging
 [2024-01-09] [18:00] [lib/play-error-sound.ts] Fixed error sound to properly handle multiple plays by reusing AudioContext
 [2024-01-09] [18:00] [components/remove-items-form.tsx] Centered footer buttons with max width container
+[2024-01-09] [18:05] [components/remove-items-form.tsx] Added manual barcode entry dialog with keyboard button
+[2024-01-09] [18:10] [components/remove-stock-form.tsx] Added manual location code entry with keyboard button and dialog
+[2024-01-09] [18:10] [components/putaway-form.tsx] Added manual location code entry with keyboard button and dialog
+[2024-01-09] [18:15] [components/putaway-items-form.tsx] Added manual barcode entry for items with keyboard button and dialog
+[2024-01-09] [18:20] [app/layout.tsx] Increased main container max width to 1600px for better use of screen space
+[2024-01-09] [18:25] [components/move-stock-form.tsx] Fixed incorrect toast import path from @/components/ui/use-toast to @/hooks/use-toast
+[2024-01-09] [18:30] [app/stock/putaway/page.tsx] Optimized container widths for better mobile responsiveness
+[2024-01-09] [18:30] [app/stock/remove/page.tsx] Optimized container widths for better mobile responsiveness
+[2024-01-09] [18:35] [tailwind.config.ts] Updated container configuration for better mobile responsiveness and screen space utilization site-wide
+[2024-01-09] [14:30] [app/stock/move/page.tsx] Removed container and max-width constraints to improve mobile responsiveness
+[2024-01-09] [14:30] [app/stock/sku/page.tsx] Removed container and padding constraints to improve mobile responsiveness
+[2024-01-09] [14:30] [app/stock/lookup/page.tsx] Removed container and max-width constraints to improve mobile responsiveness
+[2024-01-09] [14:35] [components/sku-table.tsx] Added mobile-friendly card view and improved responsive layout for SKU management table
+[2024-01-09] [14:40] [tailwind.config.ts] Updated container configuration with better padding and breakpoint values
+[2024-01-09] [14:40] [app/layout.tsx] Added max-width to main container for better desktop layout while maintaining mobile responsiveness
+[2024-01-09] [14:45] [Multiple Pages] Updated all main pages to use full width on desktop while maintaining mobile responsiveness
+[2024-01-09] [14:45] [app/stock/layout.tsx] Removed max-w-xl constraint to allow stock pages to use full container width
+[2024-01-09] [14:50] [app/stock/remove/page.tsx] Removed inconsistent max-width constraints to follow layout structure consistently
+[2024-01-09] [14:55] [app/page.tsx] Updated home page to use consistent container structure
+[2024-01-09] [14:55] [app/locations/layout.tsx] Created locations layout file to maintain consistent width across all pages
+[2024-01-09] [15:00] [app/(main)/layout.tsx] Created shared layout file for all main pages
+[2024-01-09] [15:00] [app/stock/layout.tsx, app/locations/layout.tsx] Removed individual layout files in favor of shared layout
+[2024-01-09] [15:00] [Multiple] Moved pages to app/(main) directory for consistent layout structure
+[2024-01-09] [15:05] [app/(main)/*] Moved all pages (home, stock, locations) under (main) directory to share the same layout
+[2024-01-09] [15:10] [app/(main)/*] Removed redundant layout files from locations and stock directories to use single shared layout
+[2024-01-09] [15:15] [app/(main)/layout.tsx] Updated main layout to ensure consistent full width across all pages
+[2024-01-09] [14:30] [app/(main)/settings/page.tsx] Updated settings page layout to match shared pattern and improve mobile responsiveness

@@ -24,6 +24,7 @@ model Location {
   stocks            Stock[]
   fromTransactions  Transaction[] @relation("FromLocation")
   toTransactions    Transaction[] @relation("ToLocation")
+  putawayBatches    PutawayBatch[]
 
   @@index([label])
 }
@@ -79,24 +80,25 @@ model Stock {
 }
 
 model Transaction {
-  id              String    @id @default(cuid())
-  quantity        Int
-  type            TransactionType
-  createdAt       DateTime  @default(now())
-
-  // Relations
-  item            Item      @relation(fields: [itemId], references: [id])
-  itemId          String
-  fromLocation    Location? @relation("FromLocation", fields: [fromLocationId], references: [id])
-  fromLocationId  String?
-  toLocation      Location? @relation("ToLocation", fields: [toLocationId], references: [id])
-  toLocationId    String?
-  user            User?     @relation(fields: [userId], references: [id])
-  userId          String?
+  id             String        @id @default(cuid())
+  type           TransactionType
+  quantity       Int
+  itemId         String
+  item           Item          @relation(fields: [itemId], references: [id])
+  toLocationId   String?
+  toLocation     Location?     @relation("ToLocation", fields: [toLocationId], references: [id])
+  fromLocationId String?
+  fromLocation   Location?     @relation("FromLocation", fields: [fromLocationId], references: [id])
+  createdAt      DateTime      @default(now())
+  putawayBatchId String?
+  putawayBatch   PutawayBatch? @relation(fields: [putawayBatchId], references: [id])
+  user           User?         @relation(fields: [userId], references: [id])
+  userId         String?
 
   @@index([itemId])
   @@index([fromLocationId])
   @@index([toLocationId])
+  @@index([putawayBatchId])
   @@index([userId])
 }
 
@@ -115,6 +117,18 @@ model User {
 
   @@index([username])
   @@index([companyId])
+}
+
+model PutawayBatch {
+  id          String        @id @default(cuid())
+  locationId  String
+  location    Location      @relation(fields: [locationId], references: [id])
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  transactions Transaction[]
+  status      String        @default("COMPLETED") // COMPLETED, EDITED, UNDONE
+
+  @@index([locationId])
 }
 
 enum TransactionType {

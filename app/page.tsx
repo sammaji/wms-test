@@ -1,107 +1,49 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { prisma } from "@/lib/db"
-import { Prisma } from "@prisma/client"
+import { Suspense } from "react"
+import { StatsCards } from "@/components/stats-cards"
+import { RecentPutaways } from "@/components/recent-putaways"
 
-type TransactionWithRelations = Prisma.TransactionGetPayload<{
-  include: {
-    item: true;
-    fromLocation: true;
-    toLocation: true;
-  }
-}>
-
-async function getStats() {
-  const [totalItems, totalLocations, totalStock] = await Promise.all([
-    prisma.item.count(),
-    prisma.location.count(),
-    prisma.stock.aggregate({
-      _sum: {
-        quantity: true
-      }
-    })
-  ])
-
-  return {
-    totalItems,
-    totalLocations,
-    totalStock: totalStock._sum.quantity || 0
-  }
-}
-
-async function getRecentTransactions() {
-  return prisma.transaction.findMany({
-    take: 5,
-    orderBy: {
-      createdAt: 'desc'
-    },
-    include: {
-      item: true,
-      fromLocation: true,
-      toLocation: true
-    }
-  }) as Promise<TransactionWithRelations[]>
-}
-
-export default async function Home() {
-  const stats = await getStats()
-  const recentTransactions = await getRecentTransactions()
-
+export default async function HomePage() {
   return (
-    <div className="space-y-4 md:space-y-8">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
-        <Card className="col-span-1">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Items</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl md:text-2xl font-bold">{stats.totalItems}</div>
-          </CardContent>
-        </Card>
-        <Card className="col-span-1">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Locations</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl md:text-2xl font-bold">{stats.totalLocations}</div>
-          </CardContent>
-        </Card>
-        <Card className="col-span-2 md:col-span-1">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Stock</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl md:text-2xl font-bold">{stats.totalStock}</div>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="space-y-8">
+      <Suspense fallback={<StatsCardsSkeleton />}>
+        <StatsCards />
+      </Suspense>
+      <Suspense fallback={<RecentPutawaysSkeleton />}>
+        <RecentPutaways />
+      </Suspense>
+    </div>
+  )
+}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Transactions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {recentTransactions.map((transaction) => (
-              <div
-                key={transaction.id}
-                className="flex flex-col md:flex-row md:items-center justify-between border-b pb-4 last:border-0 last:pb-0 gap-2"
-              >
-                <div>
-                  <p className="font-medium line-clamp-1">{transaction.item.name}</p>
-                  <p className="text-sm text-muted-foreground line-clamp-2">
-                    {transaction.type === 'ADD' && `Added ${transaction.quantity} to ${transaction.toLocation?.label}`}
-                    {transaction.type === 'REMOVE' && `Removed ${transaction.quantity} from ${transaction.fromLocation?.label}`}
-                    {transaction.type === 'MOVE' && `Moved ${transaction.quantity} from ${transaction.fromLocation?.label} to ${transaction.toLocation?.label}`}
-                  </p>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {new Date(transaction.createdAt).toLocaleDateString()}
-                </div>
-              </div>
-            ))}
+function StatsCardsSkeleton() {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {Array(4).fill(0).map((_, i) => (
+        <div key={i} className="p-6 rounded-lg border bg-card text-card-foreground shadow-sm">
+          <div className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <div className="h-4 w-24 bg-muted animate-pulse rounded" />
           </div>
-        </CardContent>
-      </Card>
+          <div className="h-8 w-16 bg-muted animate-pulse rounded mt-2" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function RecentPutawaysSkeleton() {
+  return (
+    <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+      <div className="p-6 flex flex-col space-y-4">
+        <div className="h-6 w-32 bg-muted animate-pulse rounded" />
+        <div className="space-y-4">
+          {Array(3).fill(0).map((_, i) => (
+            <div key={i} className="flex flex-col space-y-2">
+              <div className="h-4 w-48 bg-muted animate-pulse rounded" />
+              <div className="h-4 w-32 bg-muted animate-pulse rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 } 

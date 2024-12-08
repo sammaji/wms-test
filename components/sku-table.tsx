@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -20,20 +20,22 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { toast } from "@/components/ui/use-toast"
-import { AddSKUDialog } from "@/components/add-sku-dialog"
+import { toast } from "@/hooks/use-toast"
+import { useRouter } from "next/navigation"
+
+interface Item {
+  id: string
+  sku: string
+  name: string
+  barcode: string
+  company: {
+    id: string
+    code: string
+  }
+}
 
 interface SKUTableProps {
-  items: {
-    id: string
-    sku: string
-    name: string
-    barcode: string
-    company: {
-      id: string
-      code: string
-    }
-  }[]
+  items: Item[]
   companies: {
     id: string
     code: string
@@ -41,12 +43,12 @@ interface SKUTableProps {
 }
 
 export function SKUTable({ items: initialItems, companies }: SKUTableProps) {
+  const router = useRouter()
   const [items, setItems] = useState(initialItems)
   const [searchTerm, setSearchTerm] = useState("")
   const [editingItem, setEditingItem] = useState<typeof items[0] | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [itemToDelete, setItemToDelete] = useState<string | null>(null)
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [dependencies, setDependencies] = useState<{
     stockCount: number
     transactionCount: number
@@ -87,6 +89,8 @@ export function SKUTable({ items: initialItems, companies }: SKUTableProps) {
       toast({
         title: "Success",
         description: "Item updated successfully",
+        variant: "success",
+        duration: 3000,
       })
     } catch (error) {
       console.error('Failed to update item:', error)
@@ -101,7 +105,7 @@ export function SKUTable({ items: initialItems, companies }: SKUTableProps) {
   // Add this function to check dependencies
   const checkDependencies = async (itemId: string) => {
     try {
-      const response = await fetch(`/api/items/${itemId}`)
+      const response = await fetch(`/api/items/${itemId}?dependencies=true`)
       if (!response.ok) throw new Error('Failed to get dependencies')
       const deps = await response.json()
       setDependencies(deps)
@@ -128,12 +132,8 @@ export function SKUTable({ items: initialItems, companies }: SKUTableProps) {
 
       if (!response.ok) throw new Error('Failed to delete item')
 
-      // Instead of just filtering the local state, refresh the data
-      const updatedResponse = await fetch('/api/items')
-      if (!updatedResponse.ok) throw new Error('Failed to fetch updated items')
-      const updatedItems = await updatedResponse.json()
-      
-      setItems(updatedItems)
+      // Update local state immediately
+      setItems(prevItems => prevItems.filter(item => item.id !== itemToDelete))
       setIsDeleteDialogOpen(false)
       setItemToDelete(null)
       setDependencies(null)
@@ -194,8 +194,8 @@ export function SKUTable({ items: initialItems, companies }: SKUTableProps) {
         }
 
         const data = rows.slice(1).filter(row => row.length === headers.length)
-        const successfulImports = []
-        const failedImports = []
+        const successfulImports: Item[] = []
+        const failedImports: { sku: string; reason: string }[] = []
 
         // Process each row
         for (const row of data) {
@@ -266,6 +266,8 @@ export function SKUTable({ items: initialItems, companies }: SKUTableProps) {
                 )}
               </div>
             ),
+            variant: "success",
+            duration: 3000,
           })
         }
 
@@ -309,7 +311,7 @@ export function SKUTable({ items: initialItems, companies }: SKUTableProps) {
               Import
             </Button>
           </div>
-          <Button size="sm" onClick={() => setIsAddDialogOpen(true)}>
+          <Button size="sm" onClick={() => router.push("/stock/add-sku")}>
             <Plus className="h-4 w-4 mr-2" />
             Add SKU
           </Button>
@@ -440,15 +442,6 @@ export function SKUTable({ items: initialItems, companies }: SKUTableProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <AddSKUDialog
-        open={isAddDialogOpen}
-        onOpenChange={setIsAddDialogOpen}
-        onSuccess={(newItem) => {
-          setItems([...items, newItem])
-        }}
-        companies={companies}
-      />
     </div>
   )
 } 

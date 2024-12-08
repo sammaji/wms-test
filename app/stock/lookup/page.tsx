@@ -10,7 +10,7 @@ export default async function StockLookupPage() {
   })
 
   return (
-    <div className="container py-6">
+    <div className="container max-w-6xl py-6">
       <h1 className="text-2xl font-bold mb-6">Stock Lookup</h1>
       <StockLookup companies={companies} />
     </div>

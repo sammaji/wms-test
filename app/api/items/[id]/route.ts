@@ -23,11 +23,37 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const dependencies = await getItemDependencies(params.id)
-    return NextResponse.json(dependencies)
+    // Check if we want dependencies or the full item
+    const url = new URL(req.url)
+    const wantDependencies = url.searchParams.get('dependencies') === 'true'
+
+    if (wantDependencies) {
+      const dependencies = await getItemDependencies(params.id)
+      return NextResponse.json(dependencies)
+    }
+
+    // Get the full item with company data
+    const item = await prisma.item.findUnique({
+      where: { id: params.id },
+      include: {
+        company: true
+      }
+    })
+
+    if (!item) {
+      return new NextResponse(
+        JSON.stringify({ error: "Item not found" }),
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json(item)
   } catch (error) {
-    console.error("[ITEM_DEPENDENCIES]", error)
-    return new NextResponse("Internal error", { status: 500 })
+    console.error("[ITEM_GET]", error)
+    return new NextResponse(
+      JSON.stringify({ error: "Failed to fetch item" }),
+      { status: 500 }
+    )
   }
 }
 
@@ -36,6 +62,18 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    // First check if the item exists
+    const item = await prisma.item.findUnique({
+      where: { id: params.id }
+    })
+
+    if (!item) {
+      return new NextResponse(
+        JSON.stringify({ error: "Item not found" }),
+        { status: 404 }
+      )
+    }
+
     // Use a transaction to ensure all deletes succeed or none do
     await prisma.$transaction(async (tx) => {
       // Delete all related transactions first
@@ -57,7 +95,19 @@ export async function DELETE(
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("[ITEM_DELETE]", error)
-    return new NextResponse("Internal error", { status: 500 })
+    
+    // Return a more specific error message
+    if (error instanceof Error) {
+      return new NextResponse(
+        JSON.stringify({ error: error.message }),
+        { status: 500 }
+      )
+    }
+    
+    return new NextResponse(
+      JSON.stringify({ error: "Failed to delete item" }),
+      { status: 500 }
+    )
   }
 }
 

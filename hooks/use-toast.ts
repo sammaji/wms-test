@@ -3,15 +3,17 @@ import type {
   ToastActionElement,
   ToastProps,
 } from "@/components/ui/toast"
+import { playErrorSound } from "@/lib/play-error-sound"
 
 const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 500
+const TOAST_REMOVE_DELAY = 3000
 
 type ToasterToast = ToastProps & {
   id: string
   title?: React.ReactNode
   description?: React.ReactNode
   action?: ToastActionElement
+  variant?: "default" | "destructive" | "success"
 }
 
 const actionTypes = {
@@ -89,8 +91,6 @@ export const reducer = (state: State, action: Action): State => {
     case "DISMISS_TOAST": {
       const { toastId } = action
 
-      // ! Side effects ! - This could be extracted into a dismissToast() action,
-      // but I'll keep it here for simplicity
       if (toastId) {
         addToRemoveQueue(toastId)
       } else {
@@ -111,6 +111,7 @@ export const reducer = (state: State, action: Action): State => {
         ),
       }
     }
+
     case "REMOVE_TOAST":
       if (action.toastId === undefined) {
         return {
@@ -138,9 +139,19 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
-function toast({ ...props }: Toast) {
+function toast({ variant, ...props }: Toast) {
   const id = genId()
 
+  // Play error sound for destructive toasts
+  if (variant === 'destructive') {
+    playErrorSound()
+  }
+
+  const update = (props: ToasterToast) =>
+    dispatch({
+      type: "UPDATE_TOAST",
+      toast: { ...props, id },
+    })
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
 
   dispatch({
@@ -148,24 +159,18 @@ function toast({ ...props }: Toast) {
     toast: {
       ...props,
       id,
+      variant,
       open: true,
-      onOpenChange: (open) => {
+      onOpenChange: (open: boolean) => {
         if (!open) dismiss()
       },
     },
   })
 
-  // Automatically dismiss after delay
-  setTimeout(dismiss, TOAST_REMOVE_DELAY)
-
   return {
     id: id,
     dismiss,
-    update: (props: Toast) =>
-      dispatch({
-        type: "UPDATE_TOAST",
-        toast: { ...props, id },
-      }),
+    update,
   }
 }
 

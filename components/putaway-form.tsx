@@ -1,11 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { toast } from "@/components/ui/use-toast"
-import { BarcodeScanner } from "@/components/barcode-scanner"
+import { toast } from "@/hooks/use-toast"
 
 const serverLog = async (message: string, data?: any) => {
   try {
@@ -22,71 +21,122 @@ const serverLog = async (message: string, data?: any) => {
 export function PutawayForm() {
   const router = useRouter()
   const [isProcessing, setIsProcessing] = useState(false)
-  const [isScanning, setIsScanning] = useState(false)
-  const [manualBarcode, setManualBarcode] = useState("")
+  const [barcodeInput, setBarcodeInput] = useState("")
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [shouldManageFocus, setShouldManageFocus] = useState(true)
+
+  // Function to focus the input
+  const focusInput = () => {
+    if (inputRef.current && shouldManageFocus) {
+      inputRef.current.focus({ preventScroll: true })
+    }
+  }
+
+  // Keep input focused at all times
+  useEffect(() => {
+    // Initial focus
+    focusInput()
+
+    // Set up an interval to check focus
+    const interval = setInterval(() => {
+      // Check if any dialog is open
+      const hasOpenDialog = document.querySelector('[role="dialog"]') !== null
+      if (hasOpenDialog && shouldManageFocus) {
+        setShouldManageFocus(false)
+      } else if (!hasOpenDialog && !shouldManageFocus) {
+        setShouldManageFocus(true)
+      }
+
+      // Only focus if we should manage focus
+      if (shouldManageFocus) {
+        focusInput()
+      }
+    }, 100)
+
+    // Focus when tab becomes visible
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && shouldManageFocus) {
+        focusInput()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [shouldManageFocus])
 
   const processBarcode = async (barcode: string) => {
     if (isProcessing) return
     setIsProcessing(true)
 
     try {
-      serverLog("Processing barcode in putaway form", { barcode })
-      // First verify the location exists
-      const locationResponse = await fetch(`/api/locations/${encodeURIComponent(barcode)}`)
+      await serverLog("Processing barcode in putaway form", { barcode })
       
-      if (!locationResponse.ok) {
-        if (locationResponse.status === 404) {
-          serverLog("Location not found", { barcode })
-          toast({
-            title: "Error",
-            description: "Location not found",
-            variant: "destructive",
-          })
-        } else {
-          serverLog("Failed to verify location", { barcode, status: locationResponse.status })
-          toast({
-            title: "Error",
-            description: "Failed to verify location",
-            variant: "destructive",
-          })
-        }
-        setIsScanning(false)
+      // Validate the barcode format
+      const pattern = /^[A-Za-z]{1,2}-\d{2}-\d{2}$/
+      if (!pattern.test(barcode)) {
+        await serverLog("Invalid barcode format", { barcode })
+        toast({
+          title: "Invalid Format",
+          description: "Location code must be in format: YY-XX-ZZ (e.g., A-01-02 or AB-01-02)",
+          variant: "destructive",
+        })
         return
       }
 
       // Show success toast
       toast({
-        title: "Bay Location Scanned",
-        description: `Successfully scanned bay location: ${barcode}`,
+        title: "Location Scanned",
+        description: `Successfully scanned location: ${barcode}`,
       })
 
-      serverLog("Location verified, navigating", { barcode })
-      // Redirect to the putaway page with the bay code
-      router.push(`/stock/putaway/${encodeURIComponent(barcode)}`)
+      const normalizedBarcode = barcode.toUpperCase()
+      const url = `/stock/putaway?location=${encodeURIComponent(normalizedBarcode)}`
+      
+      await serverLog("Navigating to putaway page", { 
+        barcode: normalizedBarcode,
+        url
+      })
+      
+      // Use push instead of replace to maintain history
+      router.push(url, { scroll: false })
     } catch (error) {
-      serverLog("Error processing barcode", { error })
+      await serverLog("Error processing barcode", { error })
       toast({
         title: "Error",
         description: "Failed to process barcode",
         variant: "destructive",
       })
-      setIsScanning(false)
     } finally {
       setIsProcessing(false)
+      setBarcodeInput("")
+      // Refocus the input
+      focusInput()
     }
   }
 
-  const handleManualSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!manualBarcode.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a barcode",
-        variant: "destructive",
-      })
-      return
+    if (!barcodeInput.trim()) return
+    processBarcode(barcodeInput.trim())
+  }
+
+  // Handle input change - automatically submit if it ends with Enter
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setBarcodeInput(value)
+    
+    // If the input ends with a newline character (Enter key from barcode scanner)
+    if (value.endsWith('\n')) {
+      const cleanValue = value.replace('\n', '').trim()
+      if (cleanValue) {
+        setBarcodeInput(cleanValue)
+        processBarcode(cleanValue)
+      }
     }
-    processBarcode(manualBarcode.trim())
   }
 
   return (
@@ -94,72 +144,40 @@ export function PutawayForm() {
       <div className="space-y-1">
         <h2 className="text-lg font-semibold">Putaway Process</h2>
         <p className="text-sm text-muted-foreground">
-          Scan or enter the bay location you are putting stock into
+          Scan the bay location you are putting stock into
         </p>
       </div>
       
-      <div className="flex flex-col items-center justify-center gap-4">
-        <Button
-          size="lg"
-          className="w-full relative"
-          onClick={() => {
-            serverLog("Scan Now button clicked")
-            setIsScanning(true)
-            setIsProcessing(false)
-          }}
-          disabled={isProcessing || isScanning}
-        >
-          {isProcessing ? (
-            <>
-              <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              Processing...
-            </>
-          ) : isScanning ? "Scanning..." : "Scan Now"}
-        </Button>
-
-        <div className="w-full">
-          <BarcodeScanner
-            isOpen={true}
-            onClose={() => {
-              serverLog("Scanner closed")
-              setIsScanning(false)
-            }}
-            onScan={processBarcode}
-            isScanning={isScanning}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="relative">
+          <input
+            ref={inputRef}
+            type="text"
+            inputMode="none"
+            value={barcodeInput}
+            onChange={handleInputChange}
+            placeholder="Ready for scanning..."
+            className="w-full text-lg py-6 text-center bg-muted border rounded-md"
+            disabled={isProcessing}
+            autoComplete="off"
           />
-        </div>
-
-        <div className="w-full p-4 border rounded-lg">
-          <h3 className="text-sm font-medium mb-2">Or enter barcode manually:</h3>
-          <form onSubmit={handleManualSubmit} className="flex gap-2">
-            <Input
-              value={manualBarcode}
-              onChange={(e) => setManualBarcode(e.target.value)}
-              placeholder="Enter barcode..."
-              className="flex-1"
-              disabled={isProcessing}
-            />
-            <Button type="submit" disabled={isProcessing}>
-              {isProcessing ? (
-                <>
-                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  Processing...
-                </>
-              ) : "Submit"}
-            </Button>
-          </form>
+          {isProcessing && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            </div>
+          )}
         </div>
 
         <Button
           variant="outline"
           size="lg"
           className="w-full"
-          onClick={() => router.push('/stock')}
+          onClick={() => router.push('/stock/putaway')}
           disabled={isProcessing}
         >
           Cancel
         </Button>
-      </div>
+      </form>
     </div>
   )
 } 

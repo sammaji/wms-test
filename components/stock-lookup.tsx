@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/hooks/use-toast"
 
 interface Company {
   id: string
@@ -111,8 +111,8 @@ export function StockLookup({ companies }: StockLookupProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-        <div className="flex-1 space-y-1">
+      <div className="grid gap-4 md:grid-cols-[1fr,1fr,auto]">
+        <div className="space-y-1">
           <label className="text-sm font-medium">Company</label>
           <Select
             value={selectedCompany}
@@ -131,7 +131,7 @@ export function StockLookup({ companies }: StockLookupProps) {
           </Select>
         </div>
 
-        <div className="flex-1 space-y-1">
+        <div className="space-y-1">
           <label className="text-sm font-medium">Search by SKU</label>
           <Input
             placeholder="Enter SKU..."
@@ -140,14 +140,15 @@ export function StockLookup({ companies }: StockLookupProps) {
           />
         </div>
 
-        <div className="flex gap-2">
-          <Button onClick={handleSearch} disabled={isLoading}>
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+          <Button onClick={handleSearch} disabled={isLoading} className="flex-1 sm:flex-none">
             {isLoading ? "Searching..." : "Search"}
           </Button>
           <Button
             variant="outline"
             onClick={handleDownloadReport}
             disabled={isLoading || !selectedCompany}
+            className="flex-1 sm:flex-none"
           >
             Download Report
           </Button>
@@ -155,7 +156,7 @@ export function StockLookup({ companies }: StockLookupProps) {
       </div>
 
       {stockResults.length > 0 && (
-        <div className="rounded-md border">
+        <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -168,10 +169,10 @@ export function StockLookup({ companies }: StockLookupProps) {
             <TableBody>
               {stockResults.map((stock) => (
                 <TableRow key={`${stock.id}-${stock.location.label}`}>
-                  <TableCell>{stock.item.sku}</TableCell>
-                  <TableCell>{stock.item.name}</TableCell>
-                  <TableCell>{stock.location.label}</TableCell>
-                  <TableCell className="text-right">{stock.quantity}</TableCell>
+                  <TableCell className="whitespace-nowrap">{stock.item.sku}</TableCell>
+                  <TableCell className="max-w-[200px] truncate">{stock.item.name}</TableCell>
+                  <TableCell className="whitespace-nowrap">{stock.location.label}</TableCell>
+                  <TableCell className="text-right whitespace-nowrap">{stock.quantity}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

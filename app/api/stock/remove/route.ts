@@ -1,78 +1,82 @@
-import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
+import { NextResponse } from "next/server"
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { items, bayCode } = body
+    const { items } = body as { items: { stockId: string; quantity: number }[] }
 
-    if (!items || !Array.isArray(items) || items.length === 0 || !bayCode) {
-      return new NextResponse("Invalid request body", { status: 400 })
+    // Validate request
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return NextResponse.json(
+        { error: "Invalid request body", details: "Items array is required" },
+        { status: 400 }
+      )
     }
 
-    // Start a transaction to ensure all operations succeed or none do
-    const result = await prisma.$transaction(async (tx) => {
-      // First find the location
-      const location = await tx.location.findFirst({
-        where: {
-          label: {
-            equals: bayCode,
-            mode: 'insensitive'
-          }
-        }
-      })
-
-      if (!location) {
-        throw new Error(`Location ${bayCode} not found`)
+    // Validate each item
+    for (const item of items) {
+      if (!item.stockId || typeof item.quantity !== "number" || item.quantity <= 0) {
+        return NextResponse.json(
+          {
+            error: "Invalid item data",
+            details: "Each item must have a valid stockId and positive quantity",
+          },
+          { status: 400 }
+        )
       }
+    }
 
-      const removedItems = []
+    // Process all items in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      const updates = []
 
-      for (const { stockId, quantity } of items) {
-        // Get current stock
+      // Check and update each stock record
+      for (const item of items) {
+        // Get current stock record
         const currentStock = await tx.stock.findUnique({
-          where: { id: stockId },
+          where: { id: item.stockId },
           include: { item: true }
         })
 
         if (!currentStock) {
-          throw new Error(`Stock with ID ${stockId} not found`)
+          throw new Error(`Stock record ${item.stockId} not found`)
         }
 
-        if (currentStock.quantity < quantity) {
-          throw new Error(`Insufficient quantity for ${currentStock.item.sku}`)
+        if (currentStock.quantity < item.quantity) {
+          throw new Error(
+            `Insufficient quantity for ${currentStock.item.name}. Available: ${currentStock.quantity}, Requested: ${item.quantity}`
+          )
         }
 
-        // Update stock quantity
-        const updatedStock = await tx.stock.update({
-          where: { id: stockId },
-          data: { 
-            quantity: { decrement: quantity }
-          },
-          include: { item: true }
-        })
-
-        // Create transaction record
-        await tx.transaction.create({
+        // Update stock record
+        const update = await tx.stock.update({
+          where: { id: item.stockId },
           data: {
-            type: "REMOVE",
-            quantity: quantity,
-            itemId: currentStock.itemId,
-            fromLocationId: location.id
+            quantity: {
+              decrement: item.quantity
+            }
+          },
+          include: {
+            item: true,
+            location: true
           }
         })
 
-        removedItems.push(updatedStock)
+        updates.push(update)
       }
 
-      return removedItems
+      return updates
     })
 
-    return NextResponse.json(result)
-  } catch (error) {
-    console.error("Error removing stock:", error)
-    return new NextResponse(
-      error instanceof Error ? error.message : "Internal Server Error",
+    return NextResponse.json({ success: true, updates: result })
+  } catch (error: any) {
+    console.error("[REMOVE STOCK]", error)
+    return NextResponse.json(
+      {
+        error: "Failed to remove stock",
+        details: error.message
+      },
       { status: 500 }
     )
   }

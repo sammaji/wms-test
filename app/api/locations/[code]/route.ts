@@ -11,7 +11,7 @@ export async function GET(
 
     if (!locationCode) {
       console.log("No location code provided")
-      return new NextResponse("Location code is required", { status: 400 })
+      return NextResponse.json({ error: "Location code is required" }, { status: 400 })
     }
 
     // Find the location
@@ -44,12 +44,12 @@ export async function GET(
           return NextResponse.json(alternativeLocation)
         }
       }
-      return new NextResponse("Location not found", { status: 404 })
+      return NextResponse.json({ error: "Location not found" }, { status: 404 })
     }
 
     return NextResponse.json(location)
   } catch (error) {
     console.error("Error looking up location:", error)
-    return new NextResponse("Internal Server Error", { status: 500 })
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 } 

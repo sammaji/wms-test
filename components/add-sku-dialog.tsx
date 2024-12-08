@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -10,7 +11,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -18,38 +18,50 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/hooks/use-toast"
+import { Barcode, Building2, Package2, Text } from "lucide-react"
 
-interface AddSKUDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSuccess: (newItem: any) => void
-  companies: { id: string; code: string }[]
-  defaultBarcode?: string
+interface Item {
+  id: string
+  sku: string
+  name: string
+  barcode: string
+  company: {
+    id: string
+    code: string
+  }
 }
 
-export function AddSKUDialog({ 
-  open, 
-  onOpenChange, 
-  onSuccess, 
-  companies,
-  defaultBarcode = ""
-}: AddSKUDialogProps) {
+export interface AddSKUDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSuccess: (newItem: Item) => void
+  companies: {
+    id: string
+    code: string
+  }[]
+}
+
+export function AddSKUDialog({ open, onOpenChange, onSuccess, companies }: AddSKUDialogProps) {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     sku: "",
     name: "",
-    barcode: defaultBarcode,
+    barcode: "",
     companyId: ""
   })
 
-  // Update form when defaultBarcode changes
+  // Reset form when dialog opens
   useEffect(() => {
-    setFormData(prev => ({
-      ...prev,
-      barcode: defaultBarcode
-    }))
-  }, [defaultBarcode])
+    if (open) {
+      setFormData({
+        sku: "",
+        name: "",
+        barcode: "",
+        companyId: companies.length === 1 ? companies[0].id : ""
+      })
+    }
+  }, [open, companies])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -62,22 +74,28 @@ export function AddSKUDialog({
         body: JSON.stringify(formData),
       })
 
-      if (!response.ok) throw new Error("Failed to create item")
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to create item")
+      }
 
       const newItem = await response.json()
-      onSuccess(newItem)
-      onOpenChange(false)
-      setFormData({ sku: "", name: "", barcode: "", companyId: "" })
       toast({
         title: "Success",
         description: "Item created successfully",
-        variant: "success"
+        variant: "success",
+        duration: 3000,
       })
+      
+      onOpenChange(false)
+      if (onSuccess) {
+        onSuccess(newItem)
+      }
     } catch (error) {
       console.error("Failed to create item:", error)
       toast({
         title: "Error",
-        description: "Failed to create item",
+        description: error instanceof Error ? error.message : "Failed to create item",
         variant: "destructive",
       })
     } finally {
@@ -87,60 +105,99 @@ export function AddSKUDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-[425px] overflow-hidden">
         <DialogHeader>
           <DialogTitle>Add New SKU</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="sku">SKU</Label>
-              <Input
-                id="sku"
-                value={formData.sku}
-                onChange={(e) => setFormData(prev => ({ ...prev, sku: e.target.value }))}
-                placeholder="Enter SKU"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Enter name"
-              />
-            </div>
+
+        <form onSubmit={handleSubmit} className="grid gap-6 py-4 max-h-[80vh] overflow-y-auto">
+          <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="barcode">Barcode</Label>
-              <Input
-                id="barcode"
-                value={formData.barcode}
-                onChange={(e) => setFormData(prev => ({ ...prev, barcode: e.target.value }))}
-                placeholder="Enter barcode"
-              />
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  <Barcode className="h-4 w-4" />
+                </div>
+                <Input
+                  id="barcode"
+                  value={formData.barcode}
+                  onChange={(e) => setFormData(prev => ({ ...prev, barcode: e.target.value }))}
+                  placeholder="Enter barcode"
+                  className="pl-9"
+                />
+              </div>
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="company">Company</Label>
-              <Select
-                value={formData.companyId}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, companyId: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select company" />
-                </SelectTrigger>
-                <SelectContent>
-                  {companies.map((company) => (
-                    <SelectItem key={company.id} value={company.id}>
-                      {company.code}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  <Building2 className="h-4 w-4" />
+                </div>
+                <Select
+                  value={formData.companyId}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, companyId: value }))}
+                >
+                  <SelectTrigger className="w-full pl-9">
+                    <SelectValue placeholder="Select company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companies.map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.code}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sku">SKU</Label>
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  <Package2 className="h-4 w-4" />
+                </div>
+                <Input
+                  id="sku"
+                  value={formData.sku}
+                  onChange={(e) => setFormData(prev => ({ ...prev, sku: e.target.value }))}
+                  placeholder="Enter SKU"
+                  className="pl-9"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  <Text className="h-4 w-4" />
+                </div>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter name"
+                  className="pl-9"
+                />
+              </div>
             </div>
           </div>
+
           <DialogFooter>
-            <Button type="submit" disabled={loading}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit"
+              disabled={loading || !formData.companyId || !formData.sku || !formData.name}
+            >
               {loading ? "Creating..." : "Create SKU"}
             </Button>
           </DialogFooter>

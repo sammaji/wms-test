@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { prisma } from "@/lib/db"
 import { BatchListItem } from "@/components/batch-list-item"
-import { PutawayBatch as PrismaPutawayBatch } from "@prisma/client"
+import type { PutawayBatch as PrismaPutawayBatch } from "@prisma/client"
 
 interface PutawayBatch {
   id: string

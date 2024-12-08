@@ -81,3 +81,21 @@
 [2024-01-09] [15:10] [app/(main)/*] Removed redundant layout files from locations and stock directories to use single shared layout
 [2024-01-09] [15:15] [app/(main)/layout.tsx] Updated main layout to ensure consistent full width across all pages
 [2024-01-09] [14:30] [app/(main)/settings/page.tsx] Updated settings page layout to match shared pattern and improve mobile responsiveness
+[2024-01-09] [14:35] [components/recent-putaways.tsx] Fixed prisma import path and added type import for PutawayBatch
+[2024-01-09] [14:40] [components/recent-putaways.tsx] Added type import for PutawayBatch to fix linter error
+[2024-01-09] [14:45] [lib/db.ts] Fixed Prisma client import path to use @prisma/client
+[2024-01-09] [14:50] [lib/prisma.ts] Removed redundant Prisma client file in favor of lib/db.ts
+[2024-01-09] [14:55] [components/recent-putaways.tsx] Updated Prisma type imports to use proper type inference
+[2024-01-09] [15:00] [components/move-stock-form.tsx] Added isScanning prop to BarcodeScanner component to fix TypeScript error
+[2024-01-09] [15:05] [components/move-stock-form.tsx] Updated move stock form to match putaway and remove stock patterns with proper barcode scanning and mobile responsiveness
+[2024-01-09] [15:10] [components/move-stock-form.tsx] Refactored move stock form to handle initial bay scanning and redirect to items page
+[2024-01-09] [15:15] [app/(main)/stock/move/items/page.tsx] Created move items page to handle item selection after scanning source bay
+[2024-01-09] [15:15] [components/move-items-form.tsx] Created move items form component with barcode scanning and quantity selection
+[2024-01-09] [15:20] [components/move-items-form.tsx] Fixed barcode scanning to process scans immediately and added proper form submit handlers
+[2024-01-09] [15:25] [components/move-items-form.tsx] Updated to use localStorage for storing move data instead of URL parameters
+[2024-01-09] [15:25] [app/(main)/stock/move/destination/page.tsx] Created destination page for move stock process
+[2024-01-09] [15:25] [app/api/stock/move/route.ts] Created API endpoint for moving stock between locations
+[2024-01-09] [15:30] [app/api/locations/validate/route.ts] Created location validation endpoint
+[2024-01-09] [15:35] [components/recent-movements.tsx] Created recent movements component to show all stock movements
+[2024-01-09] [15:35] [app/(main)/page.tsx] Updated home page to show recent movements instead of recent putaways
+[2024-01-09] [15:40] [components/recent-movements.tsx] Fixed recent movements component to be server-side

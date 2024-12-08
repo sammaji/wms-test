@@ -1,6 +1,6 @@
 import { Suspense } from "react"
 import { StatsCards } from "@/components/stats-cards"
-import { RecentPutaways } from "@/components/recent-putaways"
+import { RecentMovements } from "@/components/recent-movements"
 
 export default async function HomePage() {
   return (
@@ -9,8 +9,8 @@ export default async function HomePage() {
         <Suspense fallback={<StatsCardsSkeleton />}>
           <StatsCards />
         </Suspense>
-        <Suspense fallback={<RecentPutawaysSkeleton />}>
-          <RecentPutaways />
+        <Suspense fallback={<RecentMovementsSkeleton />}>
+          <RecentMovements />
         </Suspense>
       </div>
     </div>
@@ -32,7 +32,7 @@ function StatsCardsSkeleton() {
   )
 }
 
-function RecentPutawaysSkeleton() {
+function RecentMovementsSkeleton() {
   return (
     <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
       <div className="p-6 flex flex-col space-y-4">

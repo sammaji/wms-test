@@ -1,110 +1,119 @@
-import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
+import { NextResponse } from "next/server"
+import { TransactionType } from "@prisma/client"
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { sourceBay, destinationBay, items } = body
-
-    if (!sourceBay || !destinationBay || !items || !Array.isArray(items)) {
-      return new NextResponse("Invalid request body", { status: 400 })
+    const { fromLocation, toLocation, items } = body as {
+      fromLocation: string
+      toLocation: string
+      items: { stockId: string; quantity: number }[]
     }
 
-    // Start a transaction to ensure all operations succeed or none do
+    // Validate request
+    if (!fromLocation || !toLocation || !items || !Array.isArray(items) || items.length === 0) {
+      return NextResponse.json(
+        { error: "Invalid request body" },
+        { status: 400 }
+      )
+    }
+
+    // Process all items in a transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Find source and destination locations
-      const sourceLocation = await tx.location.findFirst({
-        where: {
-          label: {
-            equals: sourceBay,
-            mode: 'insensitive'
-          }
-        }
-      })
+      // Get source and destination locations
+      const [source, destination] = await Promise.all([
+        tx.location.findFirst({
+          where: { label: { equals: fromLocation, mode: 'insensitive' } }
+        }),
+        tx.location.findFirst({
+          where: { label: { equals: toLocation, mode: 'insensitive' } }
+        })
+      ])
 
-      const destinationLocation = await tx.location.findFirst({
-        where: {
-          label: {
-            equals: destinationBay,
-            mode: 'insensitive'
-          }
-        }
-      })
-
-      if (!sourceLocation || !destinationLocation) {
-        throw new Error("Source or destination location not found")
+      if (!source || !destination) {
+        throw new Error('Source or destination location not found')
       }
 
-      const movedItems = []
+      const updates = []
 
-      for (const { stockId, quantity } of items) {
-        // Get current stock
-        const currentStock = await tx.stock.findUnique({
-          where: { id: stockId },
+      // Process each item
+      for (const item of items) {
+        // Get current stock record
+        const sourceStock = await tx.stock.findUnique({
+          where: { id: item.stockId },
           include: { item: true }
         })
 
-        if (!currentStock) {
-          throw new Error(`Stock with ID ${stockId} not found`)
+        if (!sourceStock) {
+          throw new Error(`Stock record ${item.stockId} not found`)
         }
 
-        // Check if stock already exists in destination
-        let destinationStock = await tx.stock.findFirst({
-          where: {
-            itemId: currentStock.itemId,
-            locationId: destinationLocation.id
+        if (sourceStock.quantity < item.quantity) {
+          throw new Error(
+            `Insufficient quantity for ${sourceStock.item.name}. Available: ${sourceStock.quantity}, Requested: ${item.quantity}`
+          )
+        }
+
+        // Update source stock
+        const updatedSourceStock = await tx.stock.update({
+          where: { id: item.stockId },
+          data: {
+            quantity: {
+              decrement: item.quantity
+            }
           }
         })
 
-        // If stock exists in destination, update quantity
-        if (destinationStock) {
-          destinationStock = await tx.stock.update({
-            where: { id: destinationStock.id },
-            data: {
-              quantity: { increment: quantity }
+        // Update or create destination stock
+        const destinationStock = await tx.stock.upsert({
+          where: {
+            itemId_locationId: {
+              itemId: sourceStock.itemId,
+              locationId: destination.id
             }
-          })
-        } else {
-          // Create new stock in destination
-          destinationStock = await tx.stock.create({
-            data: {
-              itemId: currentStock.itemId,
-              locationId: destinationLocation.id,
-              quantity: quantity
+          },
+          create: {
+            itemId: sourceStock.itemId,
+            locationId: destination.id,
+            quantity: item.quantity
+          },
+          update: {
+            quantity: {
+              increment: item.quantity
             }
-          })
-        }
-
-        // Update source stock quantity
-        await tx.stock.update({
-          where: { id: stockId },
-          data: {
-            quantity: { decrement: quantity }
           }
         })
 
         // Create transaction record
-        await tx.transaction.create({
+        const transaction = await tx.transaction.create({
           data: {
-            type: "MOVE",
-            quantity: quantity,
-            itemId: currentStock.itemId,
-            fromLocationId: sourceLocation.id,
-            toLocationId: destinationLocation.id
+            type: TransactionType.MOVE,
+            quantity: item.quantity,
+            itemId: sourceStock.itemId,
+            fromLocationId: source.id,
+            toLocationId: destination.id
           }
         })
 
-        movedItems.push(destinationStock)
+        updates.push({
+          sourceStock: updatedSourceStock,
+          destinationStock,
+          transaction
+        })
       }
 
-      return movedItems
+      return updates
     })
 
-    return NextResponse.json(result)
-  } catch (error) {
-    console.error("Error moving stock:", error)
-    return new NextResponse(
-      error instanceof Error ? error.message : "Internal Server Error",
+    return NextResponse.json({ success: true, updates: result })
+  } catch (error: any) {
+    console.error("[MOVE STOCK]", error)
+    return NextResponse.json(
+      {
+        error: "Failed to move stock",
+        details: error.message
+      },
       { status: 500 }
     )
   }

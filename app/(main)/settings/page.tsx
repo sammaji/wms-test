@@ -25,40 +25,25 @@ export default function SettingsPage() {
   const [companies, setCompanies] = useState<Company[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [editingCompany, setEditingCompany] = useState<Company | null>(null)
   const [code, setCode] = useState("")
+  const [editingCompany, setEditingCompany] = useState<Company | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Debug logging for state changes
-  useEffect(() => {
-    console.log("[SETTINGS] State changed:", {
-      companies,
-      isLoading,
-      isDialogOpen,
-      isSubmitting,
-      editingCompany,
-      code
-    })
-  }, [companies, isLoading, isDialogOpen, isSubmitting, editingCompany, code])
-
-  // Fetch companies
   useEffect(() => {
     fetchCompanies()
   }, [])
 
   const fetchCompanies = async () => {
-    console.log("[SETTINGS] Fetching companies")
     try {
-      const response = await fetch("/api/companies")
-      if (!response.ok) throw new Error("Failed to fetch companies")
+      const response = await fetch('/api/companies')
+      if (!response.ok) throw new Error('Failed to fetch companies')
       const data = await response.json()
-      console.log("[SETTINGS] Companies fetched:", data)
       setCompanies(data)
     } catch (error) {
-      console.error("[SETTINGS] Error fetching companies:", error)
+      console.error('Failed to fetch companies:', error)
       toast({
         title: "Error",
-        description: "Failed to load companies",
+        description: "Failed to fetch companies",
         variant: "destructive",
       })
     } finally {
@@ -68,56 +53,38 @@ export default function SettingsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("[SETTINGS] Form submitted with code:", code)
-    
-    if (!code.trim()) {
-      console.log("[SETTINGS] Empty code, showing error")
-      toast({
-        title: "Error",
-        description: "Company code is required",
-        variant: "destructive",
-      })
-      return
-    }
-
     setIsSubmitting(true)
 
     try {
-      console.log("[SETTINGS] Sending request:", {
-        method: editingCompany ? "PUT" : "POST",
-        url: "/api/companies" + (editingCompany ? `/${editingCompany.id}` : ""),
-        body: { code }
-      })
+      const url = editingCompany 
+        ? `/api/companies/${editingCompany.id}`
+        : '/api/companies'
+      
+      const method = editingCompany ? 'PATCH' : 'POST'
 
-      const response = await fetch("/api/companies" + (editingCompany ? `/${editingCompany.id}` : ""), {
-        method: editingCompany ? "PUT" : "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ code }),
-      })
-
-      const responseText = await response.text()
-      console.log("[SETTINGS] Response:", {
-        status: response.status,
-        text: responseText
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
       })
 
       if (!response.ok) {
-        throw new Error(responseText || "Failed to save company")
+        const error = await response.json()
+        throw new Error(error.message || 'Failed to save company')
       }
 
       await fetchCompanies()
       setIsDialogOpen(false)
       setCode("")
       setEditingCompany(null)
-      
+
       toast({
         title: "Success",
-        description: `Company ${editingCompany ? "updated" : "created"} successfully`,
+        description: `Company ${editingCompany ? 'updated' : 'created'} successfully`,
+        variant: "success",
       })
     } catch (error) {
-      console.error("[SETTINGS] Error saving company:", error)
+      console.error('Failed to save company:', error)
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to save company",
@@ -128,45 +95,44 @@ export default function SettingsPage() {
     }
   }
 
-  const handleEdit = (company: Company) => {
-    setEditingCompany(company)
-    setCode(company.code)
-    setIsDialogOpen(true)
-  }
-
-  const handleDelete = async (company: Company) => {
-    if (!confirm(`Are you sure you want to delete ${company.code}?`)) return
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this company?')) return
 
     try {
-      const response = await fetch(`/api/companies/${company.id}`, {
-        method: "DELETE",
+      const response = await fetch(`/api/companies/${id}`, {
+        method: 'DELETE'
       })
 
-      if (!response.ok) throw new Error("Failed to delete company")
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || 'Failed to delete company')
+      }
 
       await fetchCompanies()
       toast({
         title: "Success",
         description: "Company deleted successfully",
+        variant: "success",
       })
     } catch (error) {
+      console.error('Failed to delete company:', error)
       toast({
         title: "Error",
-        description: "Failed to delete company",
+        description: error instanceof Error ? error.message : "Failed to delete company",
         variant: "destructive",
       })
     }
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="flex justify-between items-center mb-6">
+    <div className="w-full py-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold">Settings</h1>
       </div>
 
       <div className="space-y-6">
         <div className="bg-card rounded-lg p-4">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
             <h2 className="text-xl font-semibold">Companies</h2>
             <Button onClick={() => {
               setEditingCompany(null)
@@ -179,7 +145,7 @@ export default function SettingsPage() {
           </div>
 
           {isLoading ? (
-            <div className="flex justify-center items-center p-8">
+            <div className="flex items-center justify-center p-4">
               <Loader2 className="w-6 h-6 animate-spin" />
             </div>
           ) : (
@@ -194,18 +160,23 @@ export default function SettingsPage() {
                 {companies.map((company) => (
                   <TableRow key={company.id}>
                     <TableCell>{company.code}</TableCell>
-                    <TableCell className="text-right space-x-2">
+                    <TableCell className="text-right">
                       <Button
                         variant="ghost"
-                        size="icon"
-                        onClick={() => handleEdit(company)}
+                        size="sm"
+                        onClick={() => {
+                          setEditingCompany(company)
+                          setCode(company.code)
+                          setIsDialogOpen(true)
+                        }}
                       >
                         <Pencil className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(company)}
+                        size="sm"
+                        onClick={() => handleDelete(company.id)}
+                        className="text-destructive hover:text-destructive"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -221,18 +192,19 @@ export default function SettingsPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingCompany ? "Edit" : "Add"} Company</DialogTitle>
+            <DialogTitle>{editingCompany ? 'Edit' : 'Add'} Company</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="code">Company Code</Label>
-              <Input
-                id="code"
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                placeholder="Enter company code"
-                required
-              />
+          <form onSubmit={handleSubmit}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="code">Company Code</Label>
+                <Input
+                  id="code"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="Enter company code"
+                />
+              </div>
             </div>
             <DialogFooter>
               <Button
@@ -243,14 +215,14 @@ export default function SettingsPage() {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting || !code}>
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {editingCompany ? "Updating..." : "Adding..."}
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
                   </>
                 ) : (
-                  editingCompany ? "Update" : "Add"
+                  'Save'
                 )}
               </Button>
             </DialogFooter>

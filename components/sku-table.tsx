@@ -292,71 +292,115 @@ export function SKUTable({ items: initialItems, companies }: SKUTableProps) {
           placeholder="Search SKUs..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
+          className="w-full sm:max-w-sm"
         />
-        <div className="flex gap-2">
-          <Button size="sm" onClick={handleDownload}>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto justify-end">
+          <Button size="sm" onClick={handleDownload} className="flex-1 sm:flex-none">
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
-          <div className="relative">
+          <div className="relative flex-1 sm:flex-none">
             <input
               type="file"
               accept=".csv"
               onChange={handleFileUpload}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
-            <Button size="sm">
+            <Button size="sm" className="w-full">
               <Upload className="h-4 w-4 mr-2" />
               Import
             </Button>
           </div>
-          <Button size="sm" onClick={() => router.push("/stock/add-sku")}>
+          <Button size="sm" onClick={() => router.push("/stock/add-sku")} className="flex-1 sm:flex-none">
             <Plus className="h-4 w-4 mr-2" />
             Add SKU
           </Button>
         </div>
       </div>
 
-      <div className="rounded-md border overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>SKU</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Barcode</TableHead>
-              <TableHead>Company</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredItems.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell>{item.sku}</TableCell>
-                <TableCell>{item.name}</TableCell>
-                <TableCell>{item.barcode}</TableCell>
-                <TableCell>{item.company?.code || 'N/A'}</TableCell>
-                <TableCell className="text-right">
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => setEditingItem(item)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-destructive"
-                    onClick={() => handleDeleteClick(item.id)}
-                  >
-                    <Trash className="h-4 w-4" />
-                  </Button>
-                </TableCell>
+      {/* Desktop View */}
+      <div className="w-full rounded-md border md:block hidden">
+        <div className="w-full overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[15%]">SKU</TableHead>
+                <TableHead className="w-[35%]">Name</TableHead>
+                <TableHead className="w-[25%]">Barcode</TableHead>
+                <TableHead className="w-[15%]">Company</TableHead>
+                <TableHead className="w-[10%] text-right">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredItems.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell>{item.sku}</TableCell>
+                  <TableCell>{item.name}</TableCell>
+                  <TableCell>{item.barcode}</TableCell>
+                  <TableCell>{item.company?.code || 'N/A'}</TableCell>
+                  <TableCell className="text-right">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => setEditingItem(item)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-destructive"
+                      onClick={() => handleDeleteClick(item.id)}
+                    >
+                      <Trash className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      {/* Mobile View */}
+      <div className="space-y-4 md:hidden">
+        {filteredItems.map((item) => (
+          <div key={item.id} className="border rounded-lg p-4 space-y-3">
+            <div className="flex justify-between items-start">
+              <div>
+                <div className="font-medium">{item.sku}</div>
+                <div className="text-sm text-muted-foreground">{item.name}</div>
+              </div>
+              <div className="flex gap-1">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setEditingItem(item)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-destructive"
+                  onClick={() => handleDeleteClick(item.id)}
+                >
+                  <Trash className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div>
+                <div className="font-medium text-muted-foreground">Barcode</div>
+                <div>{item.barcode}</div>
+              </div>
+              <div>
+                <div className="font-medium text-muted-foreground">Company</div>
+                <div>{item.company?.code || 'N/A'}</div>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Edit Dialog */}

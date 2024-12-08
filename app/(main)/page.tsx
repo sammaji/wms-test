@@ -4,13 +4,15 @@ import { RecentPutaways } from "@/components/recent-putaways"
 
 export default async function HomePage() {
   return (
-    <div className="space-y-8">
-      <Suspense fallback={<StatsCardsSkeleton />}>
-        <StatsCards />
-      </Suspense>
-      <Suspense fallback={<RecentPutawaysSkeleton />}>
-        <RecentPutaways />
-      </Suspense>
+    <div className="w-full py-6">
+      <div className="space-y-8">
+        <Suspense fallback={<StatsCardsSkeleton />}>
+          <StatsCards />
+        </Suspense>
+        <Suspense fallback={<RecentPutawaysSkeleton />}>
+          <RecentPutaways />
+        </Suspense>
+      </div>
     </div>
   )
 }

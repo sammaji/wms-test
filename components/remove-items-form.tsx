@@ -12,8 +12,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Loader2, Minus, Plus, Scan } from "lucide-react"
+import { Loader2, Minus, Plus, Scan, Keyboard } from "lucide-react"
 import { playErrorSound } from "@/lib/play-error-sound"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 
 interface Stock {
   id: string
@@ -39,13 +47,16 @@ export function RemoveItemsForm({ location, initialStock }: RemoveItemsFormProps
   const router = useRouter()
   const [isProcessing, setIsProcessing] = useState(false)
   const [barcodeInput, setBarcodeInput] = useState("")
+  const [manualBarcodeInput, setManualBarcodeInput] = useState("")
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [stock, setStock] = useState(initialStock)
   const [selectedItems, setSelectedItems] = useState<Record<string, number>>({})
   const inputRef = useRef<HTMLInputElement>(null)
+  const manualInputRef = useRef<HTMLInputElement>(null)
 
   // Function to focus the input
   const focusInput = () => {
-    if (inputRef.current) {
+    if (inputRef.current && !isDialogOpen) {
       inputRef.current.focus()
       // Force cursor to end of input
       const len = inputRef.current.value.length
@@ -53,40 +64,51 @@ export function RemoveItemsForm({ location, initialStock }: RemoveItemsFormProps
     }
   }
 
-  // Keep input focused at all times
+  // Keep input focused at all times (except when dialog is open)
   useEffect(() => {
-    focusInput()
-    const interval = setInterval(focusInput, 100)
+    if (!isDialogOpen) {
+      focusInput()
+      const interval = setInterval(focusInput, 100)
 
-    // Focus when tab becomes visible
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        focusInput()
+      // Focus when tab becomes visible
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible' && !isDialogOpen) {
+          focusInput()
+        }
+      }
+
+      // Focus when window gains focus
+      const handleFocus = () => !isDialogOpen && focusInput()
+
+      // Focus on click anywhere in the document
+      const handleClick = () => !isDialogOpen && focusInput()
+
+      document.addEventListener('visibilitychange', handleVisibilityChange)
+      window.addEventListener('focus', handleFocus)
+      document.addEventListener('click', handleClick)
+
+      return () => {
+        clearInterval(interval)
+        document.removeEventListener('visibilitychange', handleVisibilityChange)
+        window.removeEventListener('focus', handleFocus)
+        document.removeEventListener('click', handleClick)
       }
     }
+  }, [isDialogOpen])
 
-    // Focus when window gains focus
-    const handleFocus = () => focusInput()
-
-    // Focus on click anywhere in the document
-    const handleClick = () => focusInput()
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('focus', handleFocus)
-    document.addEventListener('click', handleClick)
-
-    return () => {
-      clearInterval(interval)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('focus', handleFocus)
-      document.removeEventListener('click', handleClick)
+  // Focus manual input when dialog opens
+  useEffect(() => {
+    if (isDialogOpen && manualInputRef.current) {
+      manualInputRef.current.focus()
     }
-  }, [])
+  }, [isDialogOpen])
 
   const processBarcode = async (barcode: string) => {
     if (isProcessing) return
     setIsProcessing(true)
     setBarcodeInput("")
+    setManualBarcodeInput("")
+    setIsDialogOpen(false)
 
     try {
       console.log("[REMOVE] Processing barcode:", barcode)
@@ -248,6 +270,15 @@ export function RemoveItemsForm({ location, initialStock }: RemoveItemsFormProps
     }
   }
 
+  // Handle manual barcode submission
+  const handleManualSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const value = manualBarcodeInput.trim()
+    if (value) {
+      processBarcode(value)
+    }
+  }
+
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background">
       {/* Header */}
@@ -263,28 +294,73 @@ export function RemoveItemsForm({ location, initialStock }: RemoveItemsFormProps
       {/* Main Content */}
       <div className="flex-1 container py-4 space-y-4">
         {/* Scan Input */}
-        <form onSubmit={handleFormSubmit} className="relative">
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-            <Scan className="h-5 w-5" />
-          </div>
-          <input
-            ref={inputRef}
-            type="text"
-            inputMode="none"
-            value={barcodeInput}
-            onChange={handleInputChange}
-            placeholder="Ready for scanning..."
-            className="w-full h-14 pl-12 pr-4 bg-muted/50 border rounded-lg text-lg"
-            disabled={isProcessing}
-            autoComplete="off"
-            autoFocus
-          />
-          {isProcessing && (
-            <div className="absolute right-4 top-1/2 -translate-y-1/2">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <div className="flex gap-2">
+          <form onSubmit={handleFormSubmit} className="relative flex-1">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+              <Scan className="h-5 w-5" />
             </div>
-          )}
-        </form>
+            <input
+              ref={inputRef}
+              type="text"
+              inputMode="none"
+              value={barcodeInput}
+              onChange={handleInputChange}
+              placeholder="Ready for scanning..."
+              className="w-full h-14 pl-12 pr-4 bg-muted/50 border rounded-lg text-lg"
+              disabled={isProcessing}
+              autoComplete="off"
+              autoFocus
+            />
+            {isProcessing && (
+              <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              </div>
+            )}
+          </form>
+
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                variant="outline" 
+                className="h-14 px-4"
+                disabled={isProcessing}
+              >
+                <Keyboard className="h-5 w-5" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Enter Barcode Manually</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleManualSubmit} className="space-y-4 pt-4">
+                <Input
+                  ref={manualInputRef}
+                  type="text"
+                  value={manualBarcodeInput}
+                  onChange={(e) => setManualBarcodeInput(e.target.value)}
+                  placeholder="Enter barcode..."
+                  className="text-lg"
+                  autoComplete="off"
+                />
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={!manualBarcodeInput.trim()}
+                  >
+                    Add Item
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
 
         {/* Stock List */}
         <div className="rounded-lg border bg-card">

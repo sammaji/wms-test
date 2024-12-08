@@ -24,7 +24,7 @@ export default async function PutawayPage({
   if (!searchParams.location) {
     console.log("[PUTAWAY PAGE] No location parameter, showing initial form")
     return (
-      <div className="container max-w-3xl py-6">
+      <div className="w-full py-6">
         <h1 className="text-2xl font-bold mb-6">Putaway</h1>
         <PutawayForm />
       </div>
@@ -38,7 +38,7 @@ export default async function PutawayPage({
   if (!isValidLocationCode(locationCode)) {
     console.log("[PUTAWAY PAGE] Invalid location format:", locationCode)
     return (
-      <div className="container max-w-xl py-6">
+      <div className="w-full py-6">
         <h1 className="text-2xl font-bold text-red-600 mb-2">Invalid Location Format</h1>
         <p className="mb-4">The location code must be in the format: YY-XX-ZZ (e.g., A-01-02 or AB-01-02)</p>
         <Button variant="outline" asChild>
@@ -81,7 +81,7 @@ export default async function PutawayPage({
       } catch (createError: any) {
         console.error("[PUTAWAY PAGE] Error creating location:", createError)
         return (
-          <div className="container max-w-xl py-6">
+          <div className="w-full py-6">
             <h1 className="text-2xl font-bold text-red-600 mb-2">Error Creating Location</h1>
             <p className="mb-4">Failed to create location. Please try again.</p>
             <p className="text-sm text-gray-600 mb-4">Error: {createError.message}</p>
@@ -95,12 +95,14 @@ export default async function PutawayPage({
 
     console.log("[PUTAWAY PAGE] Rendering PutawayItemsForm with location:", locationCode)
     return (
-      <PutawayItemsForm location={locationCode} />
+      <div className="w-full py-6">
+        <PutawayItemsForm location={locationCode} />
+      </div>
     )
   } catch (error: any) {
     console.error("[PUTAWAY PAGE] Error:", error)
     return (
-      <div className="container max-w-xl py-6">
+      <div className="w-full py-6">
         <h1 className="text-2xl font-bold text-red-600 mb-2">Error</h1>
         <p className="mb-4">Failed to process location. Please try again.</p>
         <p className="text-sm text-gray-600 mb-4">Error: {error.message}</p>

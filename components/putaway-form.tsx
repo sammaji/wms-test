@@ -5,6 +5,14 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
+import { Scan, Keyboard } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 const serverLog = async (message: string, data?: any) => {
   try {
@@ -22,51 +30,59 @@ export function PutawayForm() {
   const router = useRouter()
   const [isProcessing, setIsProcessing] = useState(false)
   const [barcodeInput, setBarcodeInput] = useState("")
+  const [manualBarcodeInput, setManualBarcodeInput] = useState("")
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  const [shouldManageFocus, setShouldManageFocus] = useState(true)
+  const manualInputRef = useRef<HTMLInputElement>(null)
 
   // Function to focus the input
   const focusInput = () => {
-    if (inputRef.current && shouldManageFocus) {
-      inputRef.current.focus({ preventScroll: true })
+    if (inputRef.current && !isDialogOpen) {
+      inputRef.current.focus()
+      // Force cursor to end of input
+      const len = inputRef.current.value.length
+      inputRef.current.setSelectionRange(len, len)
     }
   }
 
-  // Keep input focused at all times
+  // Keep input focused at all times (except when dialog is open)
   useEffect(() => {
-    // Initial focus
-    focusInput()
+    if (!isDialogOpen) {
+      focusInput()
+      const interval = setInterval(focusInput, 100)
 
-    // Set up an interval to check focus
-    const interval = setInterval(() => {
-      // Check if any dialog is open
-      const hasOpenDialog = document.querySelector('[role="dialog"]') !== null
-      if (hasOpenDialog && shouldManageFocus) {
-        setShouldManageFocus(false)
-      } else if (!hasOpenDialog && !shouldManageFocus) {
-        setShouldManageFocus(true)
+      // Focus when tab becomes visible
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible' && !isDialogOpen) {
+          focusInput()
+        }
       }
 
-      // Only focus if we should manage focus
-      if (shouldManageFocus) {
-        focusInput()
-      }
-    }, 100)
+      // Focus when window gains focus
+      const handleFocus = () => !isDialogOpen && focusInput()
 
-    // Focus when tab becomes visible
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && shouldManageFocus) {
-        focusInput()
+      // Focus on click anywhere in the document
+      const handleClick = () => !isDialogOpen && focusInput()
+
+      document.addEventListener('visibilitychange', handleVisibilityChange)
+      window.addEventListener('focus', handleFocus)
+      document.addEventListener('click', handleClick)
+
+      return () => {
+        clearInterval(interval)
+        document.removeEventListener('visibilitychange', handleVisibilityChange)
+        window.removeEventListener('focus', handleFocus)
+        document.removeEventListener('click', handleClick)
       }
     }
+  }, [isDialogOpen])
 
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
-    return () => {
-      clearInterval(interval)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
+  // Focus manual input when dialog opens
+  useEffect(() => {
+    if (isDialogOpen && manualInputRef.current) {
+      manualInputRef.current.focus()
     }
-  }, [shouldManageFocus])
+  }, [isDialogOpen])
 
   const processBarcode = async (barcode: string) => {
     if (isProcessing) return
@@ -113,6 +129,8 @@ export function PutawayForm() {
     } finally {
       setIsProcessing(false)
       setBarcodeInput("")
+      setManualBarcodeInput("")
+      setIsDialogOpen(false)
       // Refocus the input
       focusInput()
     }
@@ -122,6 +140,15 @@ export function PutawayForm() {
     e.preventDefault()
     if (!barcodeInput.trim()) return
     processBarcode(barcodeInput.trim())
+  }
+
+  // Handle manual barcode submission
+  const handleManualSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const value = manualBarcodeInput.trim()
+    if (value) {
+      processBarcode(value)
+    }
   }
 
   // Handle input change - automatically submit if it ends with Enter
@@ -148,24 +175,78 @@ export function PutawayForm() {
         </p>
       </div>
       
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="relative">
-          <input
-            ref={inputRef}
-            type="text"
-            inputMode="none"
-            value={barcodeInput}
-            onChange={handleInputChange}
-            placeholder="Ready for scanning..."
-            className="w-full text-lg py-6 text-center bg-muted border rounded-md"
-            disabled={isProcessing}
-            autoComplete="off"
-          />
-          {isProcessing && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      <div className="space-y-4">
+        <div className="flex gap-2">
+          <form onSubmit={handleSubmit} className="relative flex-1">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+              <Scan className="h-5 w-5" />
             </div>
-          )}
+            <input
+              ref={inputRef}
+              type="text"
+              inputMode="none"
+              value={barcodeInput}
+              onChange={handleInputChange}
+              placeholder="Ready for scanning..."
+              className="w-full h-14 pl-12 pr-4 bg-muted/50 border rounded-lg text-lg"
+              disabled={isProcessing}
+              autoComplete="off"
+              autoFocus
+            />
+            {isProcessing && (
+              <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              </div>
+            )}
+          </form>
+
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                variant="outline" 
+                className="h-14 px-4"
+                disabled={isProcessing}
+              >
+                <Keyboard className="h-5 w-5" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Enter Location Code Manually</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleManualSubmit} className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Enter the location code in the format: YY-XX-ZZ (e.g., A-01-02 or AB-01-02)
+                  </p>
+                  <Input
+                    ref={manualInputRef}
+                    type="text"
+                    value={manualBarcodeInput}
+                    onChange={(e) => setManualBarcodeInput(e.target.value)}
+                    placeholder="Enter location code..."
+                    className="text-lg"
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={!manualBarcodeInput.trim()}
+                  >
+                    Continue
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <Button
@@ -177,7 +258,7 @@ export function PutawayForm() {
         >
           Cancel
         </Button>
-      </form>
+      </div>
     </div>
   )
 } 

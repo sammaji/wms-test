@@ -56,7 +56,7 @@ export function Navbar() {
 
   return (
     <div className="border-b bg-background">
-      <div className="container flex h-16 items-center px-4">
+      <div className="container flex h-16 items-center px-2 md:px-4">
         <div className="flex w-full items-center justify-between">
           <Link href="/" className="flex items-center space-x-2">
             <Boxes className="h-6 w-6 text-primary" />

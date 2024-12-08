@@ -28,8 +28,8 @@ export default async function SKUPage() {
   ])
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">SKU Management</h1>
+    <div className="w-full py-6">
+      <h1 className="text-2xl font-bold mb-6">SKU Management</h1>
       <SKUTable items={items} companies={companies} />
     </div>
   )

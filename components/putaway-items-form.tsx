@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Loader2, Minus, Plus, Trash2, Scan } from "lucide-react"
+import { Loader2, Minus, Plus, Trash2, Scan, Keyboard } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +23,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 
 interface ScannedItem {
   id: string
@@ -45,6 +53,8 @@ export function PutawayItemsForm({ location }: PutawayItemsFormProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [barcodeInput, setBarcodeInput] = useState("")
   const [itemToDelete, setItemToDelete] = useState<string | null>(null)
+  const [manualBarcodeInput, setManualBarcodeInput] = useState("")
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   // Track failed barcode scans
   const [failedScans, setFailedScans] = useState<{ [barcode: string]: number }>({})
@@ -62,6 +72,7 @@ export function PutawayItemsForm({ location }: PutawayItemsFormProps) {
 
   // Input ref for focus management
   const inputRef = useRef<HTMLInputElement>(null)
+  const manualInputRef = useRef<HTMLInputElement>(null)
   
   // Focus management with error handling
   const focusInput = useCallback(() => {
@@ -149,7 +160,9 @@ export function PutawayItemsForm({ location }: PutawayItemsFormProps) {
   const processBarcode = useCallback(async (barcode: string) => {
     if (isProcessing) return
     setIsProcessing(true)
-    setBarcodeInput('')
+    setBarcodeInput("")
+    setManualBarcodeInput("")
+    setIsDialogOpen(false)
 
     try {
       if (!barcode.trim()) {
@@ -404,6 +417,22 @@ export function PutawayItemsForm({ location }: PutawayItemsFormProps) {
     }
   }, [focusInput])
 
+  // Focus manual input when dialog opens
+  useEffect(() => {
+    if (isDialogOpen && manualInputRef.current) {
+      manualInputRef.current.focus()
+    }
+  }, [isDialogOpen])
+
+  // Handle manual barcode submission
+  const handleManualSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const value = manualBarcodeInput.trim()
+    if (value) {
+      processBarcode(value)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -416,7 +445,7 @@ export function PutawayItemsForm({ location }: PutawayItemsFormProps) {
     <div className="flex flex-col min-h-[100dvh] bg-background">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background border-b">
-        <div className="container py-4">
+        <div className="py-4">
           <h1 className="text-xl font-semibold">Putaway to {location}</h1>
           <p className="text-sm text-muted-foreground">
             Scan items to add to this location
@@ -425,29 +454,79 @@ export function PutawayItemsForm({ location }: PutawayItemsFormProps) {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 container py-4 space-y-4">
+      <div className="flex-1 py-4 space-y-4">
         {/* Scan Input */}
-        <div className="relative">
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-            <Scan className="h-5 w-5" />
-          </div>
-          <input
-            ref={inputRef}
-            type="text"
-            inputMode="none"
-            value={barcodeInput}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder="Ready for scanning..."
-            className="w-full h-14 pl-12 pr-4 bg-muted/50 border rounded-lg text-lg"
-            disabled={isProcessing}
-            autoComplete="off"
-          />
-          {isProcessing && (
-            <div className="absolute right-4 top-1/2 -translate-y-1/2">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+              <Scan className="h-5 w-5" />
             </div>
-          )}
+            <input
+              ref={inputRef}
+              type="text"
+              inputMode="none"
+              value={barcodeInput}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              placeholder="Ready for scanning..."
+              className="w-full h-14 pl-12 pr-4 bg-muted/50 border rounded-lg text-lg"
+              disabled={isProcessing}
+              autoComplete="off"
+            />
+            {isProcessing && (
+              <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              </div>
+            )}
+          </div>
+
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                variant="outline" 
+                className="h-14 px-4"
+                disabled={isProcessing}
+              >
+                <Keyboard className="h-5 w-5" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Enter Item Barcode Manually</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleManualSubmit} className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Enter the item barcode to add to this location
+                  </p>
+                  <Input
+                    ref={manualInputRef}
+                    type="text"
+                    value={manualBarcodeInput}
+                    onChange={(e) => setManualBarcodeInput(e.target.value)}
+                    placeholder="Enter barcode..."
+                    className="text-lg"
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={!manualBarcodeInput.trim()}
+                  >
+                    Add Item
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Scanned Items List */}
@@ -556,7 +635,7 @@ export function PutawayItemsForm({ location }: PutawayItemsFormProps) {
 
       {/* Footer Actions */}
       <div className="sticky bottom-0 border-t bg-background/95">
-        <div className="container py-4">
+        <div className="py-4">
           <div className="flex gap-4">
             <Button
               variant="outline"

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from "react"
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode"
+import { Html5Qrcode, Html5QrcodeSupportedFormats, QrcodeResultFormat } from "html5-qrcode"
 import { debounce } from "lodash"
 
 interface BarcodeScannerProps {
@@ -29,6 +29,20 @@ const serverLog = async (message: string, data?: any) => {
     })
   } catch (error) {
     console.error('Failed to send log to server:', error)
+  }
+}
+
+// Helper function to convert QrcodeResultFormat to ScanResult format
+const formatQRCodeResult = (format: QrcodeResultFormat | undefined): ScanResult['format'] => {
+  if (!format) {
+    return {
+      format: -1,
+      formatName: 'UNKNOWN'
+    }
+  }
+  return {
+    format: format.format,
+    formatName: format.formatName
   }
 }
 
@@ -128,7 +142,7 @@ export function BarcodeScanner({
         async (decodedText, decodedResult) => {
           const result: ScanResult = {
             barcode: decodedText,
-            format: decodedResult?.result?.format
+            format: formatQRCodeResult(decodedResult?.result?.format)
           }
           await processScanResult(result)
         },

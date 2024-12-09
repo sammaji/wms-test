@@ -1,7 +1,7 @@
 "use client"
 
 import { useSearchParams } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { AddSkuForm } from "@/components/add-sku-form"
 import { Button } from "@/components/ui/button"
 
@@ -10,7 +10,7 @@ interface Company {
   code: string
 }
 
-export default function AddSKUPage() {
+function AddSKUContent() {
   const searchParams = useSearchParams()
   const barcode = searchParams.get('barcode') || ""
   const returnUrl = searchParams.get('returnUrl') || "/stock/putaway"
@@ -59,5 +59,21 @@ export default function AddSKUPage() {
         />
       </div>
     </div>
+  )
+}
+
+export default function AddSKUPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col min-h-[100dvh] bg-background">
+        <div className="sticky top-0 z-10 bg-background border-b">
+          <div className="container py-4">
+            <h1 className="text-xl font-semibold">Loading...</h1>
+          </div>
+        </div>
+      </div>
+    }>
+      <AddSKUContent />
+    </Suspense>
   )
 } 

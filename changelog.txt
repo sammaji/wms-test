@@ -119,3 +119,5 @@
 [2024-03-20] [13:45] [components/barcode-scanner.tsx] Removed unused camera-based barcode scanner component as we use scan gun input instead
 [2024-03-20] [14:00] [components/theme-provider.tsx] Fixed next-themes type import to use correct path
 [2024-03-20] [14:15] [package.json] Added react-hook-form dependency for form handling
+[2024-03-20] [14:30] [package.json] Updated dependencies and removed unused barcode scanning packages
+[2024-03-20] [14:45] [lib/db.ts] Modified Prisma client to handle Vercel build process correctly

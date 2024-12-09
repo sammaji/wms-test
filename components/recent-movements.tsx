@@ -54,51 +54,91 @@ function MovementListItem({ movement }: { movement: Movement }) {
   )
 }
 
-async function getMovements() {
-  const movements = await prisma.transaction.findMany({
-    take: 10,
-    orderBy: {
-      createdAt: 'desc'
-    },
-    include: {
-      item: {
-        select: {
-          sku: true,
-          name: true
-        }
-      },
-      fromLocation: {
-        select: {
-          label: true
-        }
-      },
-      toLocation: {
-        select: {
-          label: true
-        }
+async function retryOperation<T>(operation: () => Promise<T>, maxAttempts = 3): Promise<T> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await operation()
+    } catch (error: any) {
+      if (attempt === maxAttempts || !error.message?.includes('Server has closed the connection')) {
+        throw error
       }
+      console.log(`Attempt ${attempt} failed, retrying in ${attempt} seconds...`)
+      await new Promise(resolve => setTimeout(resolve, attempt * 1000))
     }
-  })
+  }
+  throw new Error('Failed after max attempts')
+}
 
-  return movements.map((movement: any) => ({
-    ...movement,
-    createdAt: movement.createdAt.toISOString()
-  }))
+async function getMovements() {
+  try {
+    // Ensure connection is alive
+    await prisma.$connect()
+    
+    return await retryOperation(() => 
+      prisma.transaction.findMany({
+        take: 10,
+        orderBy: {
+          createdAt: 'desc'
+        },
+        include: {
+          item: {
+            include: {
+              company: true
+            }
+          }
+        }
+      })
+    )
+  } catch (error) {
+    console.error('Failed to fetch movements:', error)
+    return [] // Return empty array if there's an error
+  }
 }
 
 export async function RecentMovements() {
   const movements = await getMovements()
 
+  if (!movements.length) {
+    return (
+      <div className="space-y-4">
+        <div className="text-xl font-semibold">Recent Movements</div>
+        <div className="text-sm text-gray-500">No recent movements</div>
+      </div>
+    )
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Recent Movements</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {movements.map((movement: Movement) => (
-          <MovementListItem key={movement.id} movement={movement} />
+    <div className="space-y-4">
+      <div className="text-xl font-semibold">Recent Movements</div>
+      <div className="grid gap-4">
+        {movements.map((movement) => (
+          <div
+            key={movement.id}
+            className="flex flex-col gap-2 p-4 border rounded-lg bg-white shadow-sm"
+          >
+            <div className="flex justify-between items-start">
+              <div>
+                <div className="font-medium">
+                  {movement.item.company.code} - {movement.item.sku}
+                </div>
+                <div className="text-sm text-gray-500">
+                  {movement.item.name}
+                </div>
+              </div>
+              <div className="text-sm text-gray-500">
+                Qty: {movement.quantity}
+              </div>
+            </div>
+            <div className="text-sm text-gray-500">
+              {movement.type === 'PUTAWAY' ? 'Putaway to' : 'Removed from'}{' '}
+              {movement.bayCode}
+            </div>
+            <div className="text-xs text-gray-400">
+              {new Date(movement.createdAt).toLocaleString()}
+            </div>
+          </div>
         ))}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 } 

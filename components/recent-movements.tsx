@@ -1,57 +1,20 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { TransactionType } from "@prisma/client"
 import { prisma } from "@/lib/db"
 
-interface Movement {
+type TransactionType = 'PUTAWAY' | 'REMOVAL'
+
+interface Transaction {
   id: string
   type: TransactionType
   quantity: number
-  createdAt: string
+  bayCode: string
+  createdAt: Date
   item: {
-    sku: string
+    company: {
+      code: string
+    }
     name: string
+    sku: string
   }
-  fromLocation?: {
-    label: string
-  }
-  toLocation?: {
-    label: string
-  }
-}
-
-function MovementListItem({ movement }: { movement: Movement }) {
-  return (
-    <div className="flex flex-col md:flex-row md:items-center justify-between border-b pb-4 last:border-0 last:pb-0 gap-4">
-      <div className="flex-1">
-        <div className="flex items-center gap-2">
-          <p className="font-medium">
-            {movement.type === TransactionType.MOVE ? (
-              <>
-                {movement.fromLocation?.label} → {movement.toLocation?.label}
-              </>
-            ) : movement.type === TransactionType.ADD ? (
-              <>Added to {movement.toLocation?.label}</>
-            ) : (
-              <>Removed from {movement.fromLocation?.label}</>
-            )}
-          </p>
-          <Badge variant={
-            movement.type === TransactionType.MOVE ? "secondary" :
-            movement.type === TransactionType.ADD ? "success" : "destructive"
-          }>
-            {movement.type}
-          </Badge>
-        </div>
-        <div className="text-sm text-muted-foreground mt-1">
-          {movement.quantity}x {movement.item.sku} - {movement.item.name}
-        </div>
-      </div>
-      <div className="text-sm text-muted-foreground">
-        {new Date(movement.createdAt).toLocaleDateString()}
-      </div>
-    </div>
-  )
 }
 
 async function retryOperation<T>(operation: () => Promise<T>, maxAttempts = 3): Promise<T> {
@@ -74,7 +37,7 @@ async function getMovements() {
     // Ensure connection is alive
     await prisma.$connect()
     
-    return await retryOperation(() => 
+    const movements = await retryOperation(() => 
       prisma.transaction.findMany({
         take: 10,
         orderBy: {
@@ -89,6 +52,8 @@ async function getMovements() {
         }
       })
     )
+
+    return movements as unknown as Transaction[]
   } catch (error) {
     console.error('Failed to fetch movements:', error)
     return [] // Return empty array if there's an error
@@ -141,4 +106,4 @@ export async function RecentMovements() {
       </div>
     </div>
   )
-} 
+}

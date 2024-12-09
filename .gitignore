@@ -48,6 +48,7 @@ next-env.d.ts
 # SSL Certificates
 localhost.pem
 localhost-key.pem
+certificates/
 
 # OS generated files
 .DS_Store
@@ -60,10 +61,12 @@ Thumbs.db
 
 # Prisma
 /prisma/*.db
-/prisma/migrations/
+/prisma/dev.db
+/prisma/dev.db-journal
 
 # Logs
 logs
 *.log
 
-certificates
+# Backup files
+backups/

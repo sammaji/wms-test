@@ -41,12 +41,14 @@
     "react-dom": "^18",
     "react-qr-barcode-scanner": "^2.0.0",
     "tailwind-merge": "^2.5.5",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "lodash": "^4.17.21"
   },
   "devDependencies": {
     "@types/node": "20.17.9",
     "@types/react": "18.3.12",
     "@types/react-dom": "^18",
+    "@types/lodash": "^4.14.202",
     "autoprefixer": "^10.0.1",
     "concurrently": "^8.2.2",
     "eslint": "^8",

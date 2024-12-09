@@ -113,3 +113,5 @@
 [2024-03-20] [12:30] [scripts/*] Added database backup scripts (bash, PowerShell, and GitHub Actions)
 [2024-03-20] [12:45] [app/(main)/stock/summary/page.tsx] Fixed stock summary page to use correct Prisma schema fields
 [2024-03-20] [12:45] [components/stock-summary-table.tsx] Updated stock summary table to use location.label instead of bayCode
+[2024-03-20] [13:00] [.gitignore] Updated to keep Prisma migrations and better organize ignored files
+[2024-03-20] [13:15] [package.json] Added @types/lodash for TypeScript support

@@ -4,6 +4,11 @@ const globalForPrisma = global as unknown as { prisma: PrismaClient }
 
 // Function to wait for database to be ready
 async function waitForDatabase(timeoutMs = 60000) {
+  // Skip database check during build
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return true
+  }
+
   const startTime = Date.now()
   while (Date.now() - startTime < timeoutMs) {
     try {
@@ -24,6 +29,11 @@ async function waitForDatabase(timeoutMs = 60000) {
 
 // Initialize Prisma Client with connection handling
 async function initPrismaClient() {
+  // Skip initialization during build
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return new PrismaClient()
+  }
+
   // Wait for database to be ready (max 1 minute)
   const isReady = await waitForDatabase()
   if (!isReady) {
@@ -32,9 +42,15 @@ async function initPrismaClient() {
   return new PrismaClient()
 }
 
-// Use existing client or create new one
-export const prisma = globalForPrisma.prisma || new PrismaClient()
+// Prevent multiple instances during development
+const prisma = globalForPrisma.prisma || new PrismaClient({
+  // Log queries only in development
+  log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+})
 
+// Save reference in development
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma
-} 
+}
+
+export { prisma } 

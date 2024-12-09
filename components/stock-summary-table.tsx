@@ -1,7 +1,9 @@
 interface Stock {
   id: string
-  bayCode: string
   quantity: number
+  location: {
+    label: string
+  }
   item: {
     id: string
     sku: string

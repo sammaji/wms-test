@@ -110,3 +110,6 @@
 [2024-03-20] [11:45] [components/stats-cards.tsx] Added retry logic and error handling for database queries
 [2024-03-20] [12:00] [components/recent-movements.tsx] Added retry logic and improved error handling for database connections
 [2024-03-20] [12:15] [.env] Fixed DATABASE_URL to use correct Render.com hostname
+[2024-03-20] [12:30] [scripts/*] Added database backup scripts (bash, PowerShell, and GitHub Actions)
+[2024-03-20] [12:45] [app/(main)/stock/summary/page.tsx] Fixed stock summary page to use correct Prisma schema fields
+[2024-03-20] [12:45] [components/stock-summary-table.tsx] Updated stock summary table to use location.label instead of bayCode

@@ -9,10 +9,11 @@ export default async function StockSummaryPage() {
         include: {
           company: true
         }
-      }
+      },
+      location: true
     },
     orderBy: [
-      { bayCode: 'asc' },
+      { location: { label: 'asc' } },
       { item: { company: { code: 'asc' } } },
       { item: { sku: 'asc' } }
     ]
@@ -20,10 +21,11 @@ export default async function StockSummaryPage() {
 
   // Group by location for better visualization
   const stockByLocation = stock.reduce((acc, curr) => {
-    if (!acc[curr.bayCode]) {
-      acc[curr.bayCode] = []
+    const locationLabel = curr.location.label
+    if (!acc[locationLabel]) {
+      acc[locationLabel] = []
     }
-    acc[curr.bayCode].push(curr)
+    acc[locationLabel].push(curr)
     return acc
   }, {} as Record<string, typeof stock>)
 

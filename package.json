@@ -10,7 +10,8 @@
     "dev:proxy-alt": "concurrently \"next dev --port 8080 --hostname 0.0.0.0\" \"local-ssl-proxy --source 8443 --target 8080\"",
     "dev:tunnel": "concurrently \"next dev --port 3000\" \"lt --port 3000 --print-requests --local-host localhost --custom-user-agent 'Mozilla/5.0 (NashOS-WMS-Dev)' --subdomain nashos-wms-dylan-dev\"",
     "generate-cert": "node generate-cert.js",
-    "build": "next build",
+    "postinstall": "prisma generate",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint"
   },
@@ -35,10 +36,10 @@
     "clsx": "^2.1.1",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.464.0",
-    "next": "14.0.3",
+    "next": "14.1.0",
     "next-themes": "^0.4.3",
-    "react": "^18",
-    "react-dom": "^18",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "react-hook-form": "^7.50.1",
     "react-qr-barcode-scanner": "^2.0.0",
     "tailwind-merge": "^2.5.5",
@@ -47,18 +48,18 @@
   },
   "devDependencies": {
     "@types/node": "20.17.9",
-    "@types/react": "18.3.12",
-    "@types/react-dom": "^18",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
     "@types/lodash": "^4.14.202",
     "autoprefixer": "^10.0.1",
     "concurrently": "^8.2.2",
     "eslint": "^8",
-    "eslint-config-next": "14.0.3",
+    "eslint-config-next": "14.1.0",
     "local-ssl-proxy": "^2.0.5",
     "postcss": "^8",
     "prisma": "^6.0.1",
     "selfsigned": "^2.4.1",
     "tailwindcss": "^3.3.0",
-    "typescript": "5.7.2"
+    "typescript": "5.3.3"
   }
 }

@@ -121,3 +121,4 @@
 [2024-03-20] [14:15] [package.json] Added react-hook-form dependency for form handling
 [2024-03-20] [14:30] [package.json] Updated dependencies and removed unused barcode scanning packages
 [2024-03-20] [14:45] [lib/db.ts] Modified Prisma client to handle Vercel build process correctly
+[2024-03-20] [15:00] [package.json] Added Prisma generate to build and postinstall scripts for Vercel deployment

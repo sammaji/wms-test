@@ -20,8 +20,7 @@ npm run dev
 3. Access the application:
 - URL: http://localhost:3000
 - Test credentials:
-  - Username: test
-  - Password: test123
+  - Password: test123 (this is set in the .env file as SITE_PASSWORD)
 
 ## Development Process
 
